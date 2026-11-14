@@ -106,15 +106,15 @@
             </div>
 
             <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto">
-                <button type="button" data-nav="dashboard" onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                    <i class="ph ph-house text-lg"></i> Beranda &amp; Mutasi
+                <button type="button" data-nav="dashboard" onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <span class="flex items-center gap-3"><i class="ph ph-house text-lg"></i> Beranda &amp; Mutasi</span>
                 </button>
 
-                <button type="button" data-nav="input" onclick="switchTab('input')" class="input-nota-nav nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                    <i class="ph ph-receipt text-lg"></i> Input Nota Baru
+                <button type="button" data-nav="input" onclick="switchTab('input')" class="input-nota-nav nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <span class="flex items-center gap-3"><i class="ph ph-receipt text-lg"></i> Input Nota Baru</span>
                 </button>
 
-                <button type="button" data-nav="topup-driver" onclick="switchTab('topup-driver')" class="driver-only nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                <button type="button" data-nav="topup-driver" onclick="switchTab('topup-driver')" class="driver-only hide nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
                     <span class="flex items-center gap-3"><i class="ph ph-hand-coins text-lg"></i> UM Masuk</span>
                     <span id="navBadgeTopupDesktop" class="hide bg-rose-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">0</span>
                 </button>
@@ -124,16 +124,16 @@
                     <span id="navBadgeApprovalDesktop" class="hide bg-rose-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">0</span>
                 </button>
 
-                <button type="button" data-nav="kasinduk" onclick="switchTab('kasinduk')" class="admin-only hide nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                    <i class="ph ph-bank text-lg"></i> <span id="navKasLabelDesktop">Kas Induk &amp; Top-Up</span>
+                <button type="button" data-nav="kasinduk" onclick="switchTab('kasinduk')" class="admin-only hide nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <span class="flex items-center gap-3"><i class="ph ph-bank text-lg"></i> <span id="navKasLabelDesktop">Kas Induk &amp; Top-Up</span></span>
                 </button>
 
-                <button type="button" data-nav="laporan" onclick="switchTab('laporan')" class="admin-only hide nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                    <i class="ph ph-file-xls text-lg"></i> Laporan &amp; Excel
+                <button type="button" data-nav="laporan" onclick="switchTab('laporan')" class="admin-only hide nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <span class="flex items-center gap-3"><i class="ph ph-file-xls text-lg"></i> Laporan &amp; Excel</span>
                 </button>
 
-                <button type="button" data-nav="pengaturan" onclick="switchTab('pengaturan')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                    <i class="ph ph-gear text-lg"></i> Pengaturan &amp; Akun
+                <button type="button" data-nav="pengaturan" onclick="switchTab('pengaturan')" class="nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <span class="flex items-center gap-3"><i class="ph ph-gear text-lg"></i> Pengaturan &amp; Akun</span>
                 </button>
             </nav>
 
@@ -190,7 +190,7 @@
                     </div>
 
                     <!-- Mode Driver & Operasional (Distribusi) -->
-                    <div id="driverSaldoCard" class="driver-only mt-4 bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 rounded-2xl p-4 text-white flex items-center justify-between shadow-md shadow-indigo-200/60">
+                    <div id="driverSaldoCard" class="driver-only hide mt-4 bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 rounded-2xl p-4 text-white flex items-center justify-between shadow-md shadow-indigo-200/60">
                         <div>
                             <p class="text-[11px] font-medium text-indigo-100">Sisa Saldo Uang Muka (UM) Anda</p>
                             <p id="headerSaldoDriver" class="text-2xl md:text-3xl font-extrabold tracking-tight mt-0.5">Rp 0</p>
@@ -590,7 +590,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-500 mb-1">Role / Hak Akses</label>
-                                    <select id="addRole" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-medium" onchange="document.getElementById('addSaldoContainer').style.display = (this.value === 'Driver' || this.value === 'Operasional') ? 'block' : 'none'">
+                                    <select id="addRole" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-medium" onchange="toggleAddSaldoVisibility()">
                                         <option value="Driver">Driver (Kas Distribusi)</option>
                                         <option value="Operasional">Operasional (Kas Distribusi)</option>
                                         <option value="Manufaktur">Manufaktur (Kas Pabrik - Direct)</option>
@@ -629,34 +629,34 @@
         </div>
 
         <!-- BOTTOM NAVIGATION BAR (MOBILE) -->
-        <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 z-40 px-2 py-1.5 flex justify-around items-center">
-            <button type="button" data-nav="dashboard" onclick="switchTab('dashboard')" class="nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+        <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 z-40 px-1.5 py-1.5 flex justify-around items-center">
+            <button type="button" data-nav="dashboard" onclick="switchTab('dashboard')" class="nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[9.5px] leading-tight font-bold text-slate-500">
                 <i class="ph ph-house text-xl mb-0.5"></i> Beranda
             </button>
 
-            <button type="button" data-nav="input" onclick="switchTab('input')" class="input-nota-nav nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+            <button type="button" data-nav="input" onclick="switchTab('input')" class="input-nota-nav nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[9.5px] leading-tight font-bold text-slate-500">
                 <i class="ph ph-plus-circle text-xl mb-0.5"></i> Input Nota
             </button>
 
-            <button type="button" data-nav="topup-driver" onclick="switchTab('topup-driver')" class="driver-only nav-btn relative flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+            <button type="button" data-nav="topup-driver" onclick="switchTab('topup-driver')" class="driver-only hide nav-btn relative flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[9.5px] leading-tight font-bold text-slate-500">
                 <i class="ph ph-hand-coins text-xl mb-0.5"></i> UM Masuk
-                <span id="navBadgeTopupMobile" class="hide absolute top-1 right-4 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 rounded-full">0</span>
+                <span id="navBadgeTopupMobile" class="hide absolute top-1 right-3 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 rounded-full">0</span>
             </button>
 
-            <button type="button" data-nav="approval" onclick="switchTab('approval')" class="admin-only hide nav-btn relative flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+            <button type="button" data-nav="approval" onclick="switchTab('approval')" class="admin-only hide nav-btn relative flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[9.5px] leading-tight font-bold text-slate-500">
                 <i class="ph ph-check-circle text-xl mb-0.5"></i> Approval
-                <span id="navBadgeApprovalMobile" class="hide absolute top-1 right-3 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 rounded-full">0</span>
+                <span id="navBadgeApprovalMobile" class="hide absolute top-1 right-2 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 rounded-full">0</span>
             </button>
 
-            <button type="button" data-nav="kasinduk" onclick="switchTab('kasinduk')" class="admin-only hide nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+            <button type="button" data-nav="kasinduk" onclick="switchTab('kasinduk')" class="admin-only hide nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[9.5px] leading-tight font-bold text-slate-500">
                 <i class="ph ph-bank text-xl mb-0.5"></i> <span id="navKasLabelMobile">Kas Induk</span>
             </button>
 
-            <button type="button" data-nav="laporan" onclick="switchTab('laporan')" class="admin-only hide nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+            <button type="button" data-nav="laporan" onclick="switchTab('laporan')" class="admin-only hide nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[9.5px] leading-tight font-bold text-slate-500">
                 <i class="ph ph-file-xls text-xl mb-0.5"></i> Laporan
             </button>
 
-            <button type="button" data-nav="pengaturan" onclick="switchTab('pengaturan')" class="nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+            <button type="button" data-nav="pengaturan" onclick="switchTab('pengaturan')" class="nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[9.5px] leading-tight font-bold text-slate-500">
                 <i class="ph ph-gear text-xl mb-0.5"></i> Akun
             </button>
         </nav>
@@ -665,9 +665,9 @@
 
     <script>
         // =========================================================================
-        // 0. KONFIGURASI URL SERVER GOOGLE APPS SCRIPT (WAJIB UNTUK GITHUB PAGES)
+        // 0. KONFIGURASI URL SERVER GOOGLE APPS SCRIPT (UNTUK GITHUB PAGES)
         // =========================================================================
-        // Opsional: Tempel URL Web App (/exec) dari Google Apps Script Anda di bawah ini
+        // Tempel URL Web App (/exec) dari Google Apps Script Anda di bawah ini agar semua perangkat otomatis terhubung:
         var DEFAULT_GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyuvDbcwiGwoyiF4yrrwdRW-Dwxif8umT1K2qmU9BEJ3L2yjYjkHPUAb_QUDsOy0n8ZWA/exec';
 
         function getGasApiUrl() {
@@ -867,8 +867,8 @@
 
         function isAdminUser() {
             if (!currentUser) return false;
-            var r = String(currentUser.role || '').trim();
-            return r === 'Admin' || r === 'Super Admin';
+            var r = String(currentUser.role || '').trim().toLowerCase();
+            return r === 'admin' || r === 'super admin';
         }
 
         function isManufakturUser() {
@@ -1182,8 +1182,22 @@
             var mfg = isManufakturUser();
             var fieldDist = isFieldDistribusiUser();
 
+            // Pastikan activeMode selalu sesuai role
+            if (!admin) {
+                activeMode = mfg ? 'Manufaktur' : 'Distribusi';
+            }
+
             document.getElementById('headerUserName').textContent = currentUser.nama_lengkap;
-            document.getElementById('headerUserRole').textContent = currentUser.role;
+            var roleBadge = document.getElementById('headerUserRole');
+            if (roleBadge) {
+                roleBadge.textContent = currentUser.role;
+                roleBadge.className = 'text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full shrink-0 ' + (
+                    admin ? 'bg-indigo-50 text-indigo-700' :
+                    (mfg ? 'bg-teal-50 text-teal-700' :
+                    (String(currentUser.role || '').toLowerCase().indexOf('op') === 0 ? 'bg-amber-50 text-amber-700' : 'bg-sky-50 text-sky-700'))
+                );
+            }
+
             document.getElementById('profileCardName').textContent = currentUser.nama_lengkap;
             document.getElementById('profileCardUsername').textContent = '@' + currentUser.username;
             document.getElementById('profileCardId').textContent = currentUser.id_user;
@@ -1296,6 +1310,14 @@
         }
 
         function switchTab(tabName, skipSave) {
+            // Proteksi akses tab berdasarkan role agar role non-admin tidak masuk halaman admin
+            if (!isAdminUser() && (tabName === 'approval' || tabName === 'kasinduk' || tabName === 'laporan')) {
+                tabName = 'dashboard';
+            }
+            if (!isFieldDistribusiUser() && tabName === 'topup-driver') {
+                tabName = 'dashboard';
+            }
+
             currentTab = tabName;
             if (!skipSave) saveUserSession();
 
@@ -1306,18 +1328,25 @@
             var target = document.getElementById('tab-' + tabName);
             if (target) target.classList.remove('hide');
 
+            // Gunakan classList agar class role (admin-only, driver-only, mfg-only, hide) TIDAK terhapus
             var navBtns = document.querySelectorAll('.nav-btn');
             for (var j = 0; j < navBtns.length; j++) {
                 var btn = navBtns[j];
                 var isActive = btn.getAttribute('data-nav') === tabName;
                 if (btn.classList.contains('flex-col')) {
-                    btn.className = isActive
-                        ? 'nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-extrabold text-indigo-600 bg-indigo-50/70'
-                        : 'nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500';
+                    btn.classList.remove('text-indigo-600', 'bg-indigo-50/70', 'font-extrabold', 'text-slate-500', 'font-bold');
+                    if (isActive) {
+                        btn.classList.add('text-indigo-600', 'bg-indigo-50/70', 'font-extrabold');
+                    } else {
+                        btn.classList.add('text-slate-500', 'font-bold');
+                    }
                 } else {
-                    btn.className = isActive
-                        ? 'nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-extrabold text-indigo-600 bg-indigo-50 transition-all'
-                        : 'nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all';
+                    btn.classList.remove('text-indigo-600', 'bg-indigo-50', 'font-extrabold', 'text-slate-600', 'hover:bg-slate-50', 'font-bold');
+                    if (isActive) {
+                        btn.classList.add('text-indigo-600', 'bg-indigo-50', 'font-extrabold');
+                    } else {
+                        btn.classList.add('text-slate-600', 'hover:bg-slate-50', 'font-bold');
+                    }
                 }
             }
 
@@ -1357,6 +1386,7 @@
                 currentUser.saldo_um = parseFloat(data.saldo_um) || 0;
                 saveUserSession();
 
+                applyRoleUI();
                 checkRealtimeChangesAndNotify(data, isInitial);
                 updateHeaderAndBadges();
                 populateFilterDropdowns();
@@ -1450,14 +1480,19 @@
             if (elMfgExp) elMfgExp.textContent = formatRupiah(totalMfgExp);
 
             // Badges
-            var pendingTopups = (dashboardData.driver_topups || []).filter(function(k) { return k.status_topup === 'Pending'; }).length;
+            var pendingTopups = isFieldDistribusiUser()
+                ? (dashboardData.driver_topups || []).filter(function(k) { return k.status_topup === 'Pending'; }).length
+                : 0;
             setBadgeCount('navBadgeTopupDesktop', pendingTopups);
             setBadgeCount('navBadgeTopupMobile', pendingTopups);
 
-            var activeTrxList = (activeMode === 'Manufaktur') ? (dashboardData.transaksi_mfg || []) : (dashboardData.transaksi || []);
-            var activeReqList = (activeMode === 'Manufaktur') ? (dashboardData.request_perubahan_mfg || []) : (dashboardData.request_perubahan || []);
-            var pendingAppCount = activeTrxList.filter(function(t) { return t.status === 'Pending'; }).length +
+            var pendingAppCount = 0;
+            if (isAdminUser()) {
+                var activeTrxList = (activeMode === 'Manufaktur') ? (dashboardData.transaksi_mfg || []) : (dashboardData.transaksi || []);
+                var activeReqList = (activeMode === 'Manufaktur') ? (dashboardData.request_perubahan_mfg || []) : (dashboardData.request_perubahan || []);
+                pendingAppCount = activeTrxList.filter(function(t) { return t.status === 'Pending'; }).length +
                                   activeReqList.filter(function(r) { return r.status_request === 'Pending'; }).length;
+            }
             setBadgeCount('navBadgeApprovalDesktop', pendingAppCount);
             setBadgeCount('navBadgeApprovalMobile', pendingAppCount);
         }
@@ -2318,6 +2353,13 @@
         // =========================================================================
         // 14. PENGATURAN, MASTER KETERANGAN & CRUD AKUN (ADMIN)
         // =========================================================================
+        function toggleAddSaldoVisibility() {
+            var roleSel = document.getElementById('addRole');
+            var box = document.getElementById('addSaldoContainer');
+            if (!roleSel || !box) return;
+            box.style.display = (roleSel.value === 'Driver' || roleSel.value === 'Operasional') ? 'block' : 'none';
+        }
+
         function renderPengaturan() {
             if (!dashboardData || !isAdminUser()) return;
             var isMfg = (activeMode === 'Manufaktur');
@@ -2435,6 +2477,7 @@
                 document.getElementById('addUsername').value = '';
                 document.getElementById('addPassword').value = '';
                 document.getElementById('addSaldoUm').value = '0';
+                toggleAddSaldoVisibility();
                 return loadDashboardData(false).then(function() { return res; });
             })
             .then(function(res) {
