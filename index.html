@@ -40,7 +40,7 @@
 </head>
 <body class="text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-700">
 
-    <!-- ==================== OVERLAY LOADING (HANYA UNTUK AKSI SUBMIT) ==================== -->
+    <!-- ==================== OVERLAY LOADING ==================== -->
     <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/45 backdrop-blur-xs z-[999] flex flex-col items-center justify-center hide">
         <div class="bg-white p-6 rounded-3xl shadow-2xl flex flex-col items-center max-w-xs mx-4">
             <div class="w-11 h-11 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
@@ -545,7 +545,7 @@
                             <button type="button" id="btnInstallPwa" onclick="triggerInstallPwa()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-indigo-200 flex items-center gap-1.5 transition-all">
                                 <i class="ph ph-download-simple text-base"></i> Install App (PWA)
                             </button>
-                            <button type="button" id="btnConfigGasServer" onclick="openGasUrlConfigModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors">
+                            <button type="button" id="btnConfigGasServer" onclick="openGasUrlSettingModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors">
                                 <i class="ph ph-plugs-connected text-base"></i> Server API
                             </button>
                             <button type="button" onclick="logoutApp()" class="md:hidden bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors">
@@ -667,7 +667,7 @@
         // =========================================================================
         // 0. KONFIGURASI URL SERVER GOOGLE APPS SCRIPT (WAJIB UNTUK GITHUB PAGES)
         // =========================================================================
-        // Tempel URL Web App (/exec) dari Google Apps Script Anda di dalam tanda kutip di bawah:
+        // Opsional: Tempel URL Web App (/exec) dari Google Apps Script Anda di bawah ini
         var DEFAULT_GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyuvDbcwiGwoyiF4yrrwdRW-Dwxif8umT1K2qmU9BEJ3L2yjYjkHPUAb_QUDsOy0n8ZWA/exec';
 
         function getGasApiUrl() {
@@ -728,15 +728,168 @@
         }
 
         // =========================================================================
-        // 1. STATE GLOBAL APLIKASI
+        // 1. STATE GLOBAL & PERSISTENT SESSION
         // =========================================================================
-// ... existing code ... -->
+        var currentUser = null;
+        var activeMode = 'Distribusi';
+        var currentTab = 'dashboard';
+        var dashboardData = null;
+        var autoSyncTimer = null;
+        var isSyncing = false;
+        var notaBase64Data = '';
+        var notaMimeTypeData = 'image/jpeg';
+        var deferredPrompt = null;
+        var lastKnownCounts = {
+            pendingTrx: 0,
+            pendingTrxMfg: 0,
+            pendingReq: 0,
+            pendingReqMfg: 0,
+            pendingTopup: 0,
+            approvedTrx: 0,
+            approvedTrxMfg: 0
+        };
+
+        var SESSION_KEY = 'pettycash_pro_session_v1';
+
+        function saveUserSession() {
+            if (!currentUser) return;
+            var payloadStr = JSON.stringify({
+                user: currentUser,
+                mode: activeMode,
+                tab: currentTab
+            });
+            try { localStorage.setItem(SESSION_KEY, payloadStr); } catch (e) {}
+            try { sessionStorage.setItem(SESSION_KEY, payloadStr); } catch (e) {}
+            try { window.name = SESSION_KEY + ':' + payloadStr; } catch (e) {}
+        }
+
+        function clearUserSession() {
+            try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+            try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+            try {
+                if (window.name && window.name.indexOf(SESSION_KEY + ':') === 0) {
+                    window.name = '';
+                }
+            } catch (e) {}
+        }
+
+        function readStoredSession() {
+            var raw = null;
+            try { raw = localStorage.getItem(SESSION_KEY); } catch (e) {}
+            if (!raw) {
+                try { raw = sessionStorage.getItem(SESSION_KEY); } catch (e) {}
+            }
+            if (!raw) {
+                try {
+                    if (window.name && window.name.indexOf(SESSION_KEY + ':') === 0) {
+                        raw = window.name.substring((SESSION_KEY + ':').length);
+                    }
+                } catch (e) {}
+            }
+            if (!raw) return null;
+            try {
+                var parsed = JSON.parse(raw);
+                if (parsed && parsed.user && parsed.user.id_user) {
+                    return parsed;
+                }
+            } catch (e) {}
+            return null;
+        }
+
+        function restoreSessionOnBoot() {
+            var saved = readStoredSession();
+            if (!saved) return;
+            currentUser = saved.user;
+            if (isAdminUser()) {
+                activeMode = saved.mode === 'Manufaktur' ? 'Manufaktur' : 'Distribusi';
+            } else if (isManufakturUser()) {
+                activeMode = 'Manufaktur';
+            } else {
+                activeMode = 'Distribusi';
+            }
+            currentTab = saved.tab || 'dashboard';
+
+            document.getElementById('loginScreen').classList.add('hide');
+            document.getElementById('appScreen').classList.remove('hide');
+            applyRoleUI();
+            switchTab(currentTab, true);
+            loadDashboardData(true);
+            startAutoSync();
+        }
+
+        // =========================================================================
+        // 2. HELPER UI & FORMATTER
+        // =========================================================================
+        function showLoading(text) {
+            var el = document.getElementById('loadingOverlay');
+            var txt = document.getElementById('loadingText');
+            if (txt) txt.textContent = text || 'Memproses data...';
+            if (el) el.classList.remove('hide');
+        }
+
+        function hideLoading() {
+            var el = document.getElementById('loadingOverlay');
+            if (el) el.classList.add('hide');
+        }
+
+        function showToast(msg, icon) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: icon || 'info',
+                title: msg,
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+        }
+
+        function formatRupiah(num) {
+            var n = parseFloat(num) || 0;
+            var neg = n < 0 ? '-' : '';
+            var absVal = Math.abs(Math.round(n));
+            return neg + 'Rp ' + absVal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function escapeAttr(str) {
+            return escapeHtml(str);
+        }
+
+        function isAdminUser() {
+            if (!currentUser) return false;
+            var r = String(currentUser.role || '').trim();
+            return r === 'Admin' || r === 'Super Admin';
+        }
+
+        function isManufakturUser() {
+            if (!currentUser) return false;
+            return String(currentUser.role || '').trim().toLowerCase() === 'manufaktur';
+        }
+
+        function isFieldDistribusiUser() {
+            if (!currentUser) return false;
+            var r = String(currentUser.role || '').trim().toLowerCase();
+            return r === 'driver' || r === 'operasional' || r === 'oprasional';
+        }
+
+        // =========================================================================
+        // 3. KONEKSI API KE GOOGLE APPS SCRIPT (HYBRID GAS + STANDALONE FETCH)
+        // =========================================================================
         function fetchAPI(payload) {
             if (currentUser && !payload.actor_role) {
                 payload.actor_role = currentUser.role;
             }
             return new Promise(function(resolve, reject) {
-                // Jika berjalan langsung di dalam Google Apps Script
                 if (typeof google !== 'undefined' && google.script && google.script.run) {
                     google.script.run
                         .withSuccessHandler(function(res) {
@@ -753,10 +906,9 @@
                     return;
                 }
 
-                // Jika berjalan sebagai Standalone PWA (GitHub Pages / Vercel / Netlify)
                 var apiUrl = getGasApiUrl();
                 if (!apiUrl) {
-                    reject(new Error('URL Server Google Apps Script (/exec) belum diatur. Klik "Atur URL Server GAS" di bawah tombol Login atau isi DEFAULT_GAS_API_URL di index.html.'));
+                    reject(new Error('URL Server Google Apps Script (/exec) belum diatur. Klik "Atur URL Server GAS" di bawah tombol Login.'));
                     return;
                 }
 
@@ -772,9 +924,15 @@
                     if (!response.ok) {
                         throw new Error('HTTP Error ' + response.status);
                     }
-                    return response.json();
+                    return response.text();
                 })
-                .then(function(res) {
+                .then(function(rawText) {
+                    var res = null;
+                    try {
+                        res = JSON.parse(rawText);
+                    } catch (parseErr) {
+                        throw new Error('Respon server bukan JSON. Pastikan backend.gs sudah memiliki doPost(e) dan Deploy Web App diset ke "Anyone / Siapa saja".');
+                    }
                     if (res && res.status === 'success') {
                         resolve(res.data);
                     } else {
@@ -782,44 +940,1785 @@
                     }
                 })
                 .catch(function(err) {
-                    reject(new Error('Gagal terhubung ke server GAS: ' + ((err && err.message) || 'Periksa koneksi internet & pastikan Deploy GAS diset ke Anyone.')));
+                    reject(new Error((err && err.message) || 'Gagal terhubung ke server GAS. Periksa koneksi & pengaturan Deploy Anyone.'));
                 });
             });
         }
-// ... existing code ... -->
+
         // =========================================================================
-        // 4. INSTALASI PWA (OTOMATIS SEMBUNYI JIKA SUDAH TERINSTALL)
+        // 4. INSTALASI PWA & SERVICE WORKER
         // =========================================================================
         function setupDynamicPwa() {
             try {
                 var pageUrl = window.location.href.split('#')[0];
+                var svgIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="28" fill="#4f46e5"/><text x="64" y="82" font-size="60" font-weight="bold" text-anchor="middle" fill="#ffffff" font-family="sans-serif">Rp</text></svg>';
+                var iconDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgIcon);
                 var manifestObj = {
                     name: 'Petty Cash Pro',
                     short_name: 'PettyCash',
                     start_url: pageUrl,
+                    scope: pageUrl.substring(0, pageUrl.lastIndexOf('/') + 1),
                     display: 'standalone',
                     background_color: '#f8fafc',
                     theme_color: '#4f46e5',
                     icons: [{
-                        src: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="28" fill="#4f46e5"/><text x="64" y="82" font-size="64" text-anchor="middle" fill="#ffffff" font-family="sans-serif">Rp</text></svg>'),
-                        sizes: '128x128',
-                        type: 'image/svg+xml'
+                        src: iconDataUrl,
+                        sizes: '192x192',
+                        type: 'image/svg+xml',
+                        purpose: 'any maskable'
                     }]
                 };
-                var blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
-                var manifestUrl = URL.createObjectURL(blob);
+                var manifestDataUrl = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
                 var linkEl = document.createElement('link');
                 linkEl.rel = 'manifest';
-                linkEl.href = manifestUrl;
+                linkEl.href = manifestDataUrl;
                 document.head.appendChild(linkEl);
             } catch (e) {}
 
-            // Daftarkan Service Worker sw.js jika di-hosting di GitHub Pages / domain sendiri
             if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
                 navigator.serviceWorker.register('./sw.js').catch(function() {});
             }
         }
-// ... existing code ... -->
+
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+            checkInstallVisibility();
+        });
+
+        window.addEventListener('appinstalled', function() {
+            deferredPrompt = null;
+            try { localStorage.setItem('pettycash_pwa_installed', '1'); } catch (e) {}
+            checkInstallVisibility();
+        });
+
+        function isAppInstalled() {
+            var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            var flagSaved = false;
+            try { flagSaved = localStorage.getItem('pettycash_pwa_installed') === '1'; } catch (e) {}
+            return isStandalone || flagSaved;
+        }
+
+        function checkInstallVisibility() {
+            var btn = document.getElementById('btnInstallPwa');
+            if (!btn) return;
+            if (isAppInstalled()) {
+                btn.classList.add('hide');
+            } else {
+                btn.classList.remove('hide');
+            }
+        }
+
+        function triggerInstallPwa() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(function(choice) {
+                    if (choice && choice.outcome === 'accepted') {
+                        try { localStorage.setItem('pettycash_pwa_installed', '1'); } catch (e) {}
+                        checkInstallVisibility();
+                    }
+                    deferredPrompt = null;
+                });
+            } else {
+                Swal.fire({
+                    title: 'Install Aplikasi ke HP',
+                    html: '<div class="text-left text-xs text-slate-600 space-y-2">' +
+                        '<p><b>Android (Chrome):</b> Tap ikon <b>titik tiga (⋮)</b> di pojok kanan atas browser &rarr; pilih <b>Tambahkan ke layar utama / Install aplikasi</b>.</p>' +
+                        '<p><b>iPhone (Safari):</b> Tap ikon <b>Bagikan (Share)</b> di bagian bawah &rarr; pilih <b>Tambahkan ke Layar Utama (Add to Home Screen)</b>.</p>' +
+                    '</div>',
+                    confirmButtonColor: '#4f46e5',
+                    confirmButtonText: 'Mengerti',
+                    customClass: { popup: 'rounded-3xl' }
+                });
+            }
+        }
+
+        // =========================================================================
+        // 5. NOTIFIKASI PERANGKAT HP
+        // =========================================================================
+        function requestDeviceNotificationPermission() {
+            if (!('Notification' in window)) {
+                showToast('Browser ini belum mendukung notifikasi push.', 'info');
+                return;
+            }
+            if (Notification.permission === 'granted') {
+                showToast('Notifikasi HP sudah aktif!', 'success');
+                return;
+            }
+            Notification.requestPermission().then(function(perm) {
+                if (perm === 'granted') {
+                    showToast('Notifikasi HP berhasil diaktifkan!', 'success');
+                } else {
+                    showToast('Izin notifikasi ditolak di pengaturan browser.', 'warning');
+                }
+            });
+        }
+
+        function triggerDeviceNotification(title, bodyText) {
+            try {
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification(title, { body: bodyText });
+                }
+            } catch (e) {}
+        }
+
+        function checkRealtimeChangesAndNotify(data, isInitial) {
+            if (!data) return;
+            var pTrx = (data.transaksi || []).filter(function(t) { return t.status === 'Pending'; }).length;
+            var pTrxMfg = (data.transaksi_mfg || []).filter(function(t) { return t.status === 'Pending'; }).length;
+            var pReq = (data.request_perubahan || []).filter(function(r) { return r.status_request === 'Pending'; }).length;
+            var pReqMfg = (data.request_perubahan_mfg || []).filter(function(r) { return r.status_request === 'Pending'; }).length;
+            var pTopup = (data.driver_topups || []).filter(function(k) { return k.status_topup === 'Pending'; }).length;
+            var aTrx = (data.transaksi || []).filter(function(t) { return t.status === 'Approved'; }).length;
+            var aTrxMfg = (data.transaksi_mfg || []).filter(function(t) { return t.status === 'Approved'; }).length;
+
+            if (!isInitial) {
+                if (isAdminUser()) {
+                    if (pTrx > lastKnownCounts.pendingTrx) {
+                        triggerDeviceNotification('Nota Distribusi Baru', 'Ada nota baru menunggu approval Admin.');
+                    }
+                    if (pTrxMfg > lastKnownCounts.pendingTrxMfg) {
+                        triggerDeviceNotification('Nota Manufaktur Baru', 'Ada nota pabrik baru menunggu approval Finance.');
+                    }
+                    if (pReq > lastKnownCounts.pendingReq || pReqMfg > lastKnownCounts.pendingReqMfg) {
+                        triggerDeviceNotification('Pengajuan Edit / Hapus', 'Ada permintaan perubahan nota baru.');
+                    }
+                } else {
+                    if (pTopup > lastKnownCounts.pendingTopup) {
+                        triggerDeviceNotification('Saldo UM Masuk!', 'Admin mengirim Top-Up UM. Silakan konfirmasi Terima/Tolak.');
+                    }
+                    if (aTrx > lastKnownCounts.approvedTrx || aTrxMfg > lastKnownCounts.approvedTrxMfg) {
+                        triggerDeviceNotification('Nota Disetujui', 'Pengajuan nota Anda telah di-Approve.');
+                    }
+                }
+            }
+
+            lastKnownCounts = {
+                pendingTrx: pTrx,
+                pendingTrxMfg: pTrxMfg,
+                pendingReq: pReq,
+                pendingReqMfg: pReqMfg,
+                pendingTopup: pTopup,
+                approvedTrx: aTrx,
+                approvedTrxMfg: aTrxMfg
+            };
+        }
+
+        // =========================================================================
+        // 6. OTENTIKASI LOGIN, LOGOUT & ROLE SWITCHER
+        // =========================================================================
+        function handleLoginSubmit() {
+            var uEl = document.getElementById('loginUsername');
+            var pEl = document.getElementById('loginPassword');
+            var username = uEl ? String(uEl.value || '').trim() : '';
+            var password = pEl ? String(pEl.value || '').trim() : '';
+
+            if (!username || !password) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Data Belum Lengkap',
+                    text: 'Silakan isi username dan password Anda.',
+                    confirmButtonColor: '#4f46e5',
+                    customClass: { popup: 'rounded-3xl' }
+                });
+                return;
+            }
+
+            showLoading('Memverifikasi akun...');
+            fetchAPI({
+                action: 'login',
+                username: username,
+                password: password
+            })
+            .then(function(userData) {
+                currentUser = userData;
+                if (isAdminUser()) {
+                    activeMode = 'Distribusi';
+                } else if (isManufakturUser()) {
+                    activeMode = 'Manufaktur';
+                } else {
+                    activeMode = 'Distribusi';
+                }
+                currentTab = 'dashboard';
+                saveUserSession();
+
+                document.getElementById('loginScreen').classList.add('hide');
+                document.getElementById('appScreen').classList.remove('hide');
+                applyRoleUI();
+                switchTab('dashboard', true);
+                return loadDashboardData(true);
+            })
+            .then(function() {
+                hideLoading();
+                startAutoSync();
+                showToast('Selamat datang, ' + currentUser.nama_lengkap + '!', 'success');
+            })
+            .catch(function(err) {
+                hideLoading();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Login Gagal',
+                    text: err.message || 'Gagal masuk ke aplikasi.',
+                    confirmButtonColor: '#4f46e5',
+                    customClass: { popup: 'rounded-3xl' }
+                });
+            });
+        }
+
+        function logoutApp() {
+            stopAutoSync();
+            clearUserSession();
+            currentUser = null;
+            dashboardData = null;
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('appScreen').classList.add('hide');
+            document.getElementById('loginScreen').classList.remove('hide');
+            updateServerStatusIndicator();
+        }
+
+        function applyRoleUI() {
+            if (!currentUser) return;
+            var admin = isAdminUser();
+            var mfg = isManufakturUser();
+            var fieldDist = isFieldDistribusiUser();
+
+            document.getElementById('headerUserName').textContent = currentUser.nama_lengkap;
+            document.getElementById('headerUserRole').textContent = currentUser.role;
+            document.getElementById('profileCardName').textContent = currentUser.nama_lengkap;
+            document.getElementById('profileCardUsername').textContent = '@' + currentUser.username;
+            document.getElementById('profileCardId').textContent = currentUser.id_user;
+            document.getElementById('profileCardRole').textContent = currentUser.role;
+
+            var adminEls = document.querySelectorAll('.admin-only');
+            for (var i = 0; i < adminEls.length; i++) {
+                if (admin) adminEls[i].classList.remove('hide');
+                else adminEls[i].classList.add('hide');
+            }
+
+            var driverEls = document.querySelectorAll('.driver-only');
+            for (var j = 0; j < driverEls.length; j++) {
+                if (fieldDist) driverEls[j].classList.remove('hide');
+                else driverEls[j].classList.add('hide');
+            }
+
+            var mfgEls = document.querySelectorAll('.mfg-only');
+            for (var k = 0; k < mfgEls.length; k++) {
+                if (mfg) mfgEls[k].classList.remove('hide');
+                else mfgEls[k].classList.add('hide');
+            }
+
+            var fieldAllEls = document.querySelectorAll('.field-user-only');
+            for (var m = 0; m < fieldAllEls.length; m++) {
+                if (!admin) fieldAllEls[m].classList.remove('hide');
+                else fieldAllEls[m].classList.add('hide');
+            }
+
+            updateModeVisuals();
+        }
+
+        function switchAppMode(mode) {
+            if (!isAdminUser()) return;
+            activeMode = mode === 'Manufaktur' ? 'Manufaktur' : 'Distribusi';
+            saveUserSession();
+            updateModeVisuals();
+            if (dashboardData) {
+                populateFilterDropdowns();
+                populateInputKategoriDropdown();
+                renderDashboardUI();
+                renderApproval();
+                renderKasIndukAndManufaktur();
+                renderLaporan();
+                renderPengaturan();
+            }
+        }
+
+        function updateModeVisuals() {
+            var admin = isAdminUser();
+            var isMfgMode = (activeMode === 'Manufaktur');
+
+            var btnDist = document.getElementById('btnModeDistribusi');
+            var btnMfg = document.getElementById('btnModeManufaktur');
+            if (btnDist && btnMfg) {
+                if (isMfgMode) {
+                    btnDist.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-800';
+                    btnMfg.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-teal-600 text-white shadow-xs';
+                } else {
+                    btnDist.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-white text-indigo-600 shadow-xs';
+                    btnMfg.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-800';
+                }
+            }
+
+            var adminDistGrid = document.getElementById('adminSaldoGrid');
+            var adminMfgGrid = document.getElementById('adminMfgSaldoGrid');
+            if (adminDistGrid && adminMfgGrid) {
+                if (admin && !isMfgMode) adminDistGrid.classList.remove('hide');
+                else adminDistGrid.classList.add('hide');
+
+                if (admin && isMfgMode) adminMfgGrid.classList.remove('hide');
+                else adminMfgGrid.classList.add('hide');
+            }
+
+            var kasDistPanel = document.getElementById('kasDistribusiPanel');
+            var kasMfgPanel = document.getElementById('kasManufakturPanel');
+            if (kasDistPanel && kasMfgPanel) {
+                if (isMfgMode) {
+                    kasDistPanel.classList.add('hide');
+                    kasMfgPanel.classList.remove('hide');
+                } else {
+                    kasDistPanel.classList.remove('hide');
+                    kasMfgPanel.classList.add('hide');
+                }
+            }
+
+            var navDesk = document.getElementById('navKasLabelDesktop');
+            var navMob = document.getElementById('navKasLabelMobile');
+            if (navDesk) navDesk.textContent = isMfgMode ? 'Kas Manufaktur' : 'Kas Induk & Top-Up';
+            if (navMob) navMob.textContent = isMfgMode ? 'Kas Pabrik' : 'Kas Induk';
+
+            var hTitle = document.getElementById('historyTitle');
+            var hSub = document.getElementById('historySubtitle');
+            if (hTitle) hTitle.textContent = isMfgMode ? 'Catatan Pengeluaran Kas Manufaktur' : 'Catatan Transaksi Kas Distribusi';
+            if (hSub) hSub.textContent = isMfgMode ? 'Riwayat nota operasional pabrik & status approval Finance' : 'Riwayat pengajuan nota Driver/Operasional & status approval';
+
+            var inTitle = document.getElementById('inputNotaFormTitle');
+            if (inTitle) {
+                inTitle.innerHTML = isMfgMode
+                    ? '<i class="ph-fill ph-factory text-teal-600 text-xl"></i> Input Nota Kas Manufaktur'
+                    : '<i class="ph-fill ph-receipt text-indigo-600 text-xl"></i> Input Nota Pengeluaran';
+            }
+
+            var mkTitle = document.getElementById('masterKatTitle');
+            if (mkTitle) {
+                mkTitle.innerHTML = isMfgMode
+                    ? '<i class="ph-fill ph-list-checks text-teal-600 text-xl"></i> Master Keterangan Kas Manufaktur'
+                    : '<i class="ph-fill ph-list-checks text-indigo-600 text-xl"></i> Master Keterangan Kas Distribusi';
+            }
+        }
+
+        function switchTab(tabName, skipSave) {
+            currentTab = tabName;
+            if (!skipSave) saveUserSession();
+
+            var sections = document.querySelectorAll('.tab-section');
+            for (var i = 0; i < sections.length; i++) {
+                sections[i].classList.add('hide');
+            }
+            var target = document.getElementById('tab-' + tabName);
+            if (target) target.classList.remove('hide');
+
+            var navBtns = document.querySelectorAll('.nav-btn');
+            for (var j = 0; j < navBtns.length; j++) {
+                var btn = navBtns[j];
+                var isActive = btn.getAttribute('data-nav') === tabName;
+                if (btn.classList.contains('flex-col')) {
+                    btn.className = isActive
+                        ? 'nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-extrabold text-indigo-600 bg-indigo-50/70'
+                        : 'nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500';
+                } else {
+                    btn.className = isActive
+                        ? 'nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-extrabold text-indigo-600 bg-indigo-50 transition-all'
+                        : 'nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all';
+                }
+            }
+
+            if (tabName === 'input') {
+                populateInputKategoriDropdown();
+            } else if (tabName === 'laporan') {
+                renderLaporan();
+            }
+        }
+
+        function shortcutToMasterKeterangan() {
+            switchTab('pengaturan');
+            setTimeout(function() {
+                var inp = document.getElementById('newKategoriInput');
+                if (inp) inp.focus();
+            }, 150);
+        }
+
+        // =========================================================================
+        // 7. SINKRONISASI DATA REALTIME
+        // =========================================================================
+        function loadDashboardData(isInitial) {
+            if (!currentUser || isSyncing) return Promise.resolve();
+            isSyncing = true;
+
+            return fetchAPI({
+                action: 'get_dashboard',
+                userId: currentUser.id_user,
+                role: currentUser.role
+            })
+            .then(function(data) {
+                isSyncing = false;
+                dashboardData = data;
+
+                if (data.user_nama) currentUser.nama_lengkap = data.user_nama;
+                if (data.user_role) currentUser.role = data.user_role;
+                currentUser.saldo_um = parseFloat(data.saldo_um) || 0;
+                saveUserSession();
+
+                checkRealtimeChangesAndNotify(data, isInitial);
+                updateHeaderAndBadges();
+                populateFilterDropdowns();
+                populateInputKategoriDropdown();
+                renderDashboardUI();
+                renderDriverTopups();
+                renderApproval();
+                renderKasIndukAndManufaktur();
+                renderLaporan();
+                renderPengaturan();
+
+                var syncLbl = document.getElementById('lastSyncLabel');
+                if (syncLbl) syncLbl.textContent = 'Sinkron: ' + (data.server_time || 'Aktif');
+            })
+            .catch(function(err) {
+                isSyncing = false;
+                if (err && err.message && err.message.indexOf('SESSION_INVALID') !== -1) {
+                    logoutApp();
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Sesi Berakhir',
+                        text: err.message.replace('SESSION_INVALID:', '').trim(),
+                        confirmButtonColor: '#4f46e5',
+                        customClass: { popup: 'rounded-3xl' }
+                    });
+                } else if (isInitial) {
+                    throw err;
+                }
+            });
+        }
+
+        function manualRefreshData() {
+            var icon = document.querySelector('#btnManualRefresh i');
+            if (icon) {
+                icon.classList.remove('spin-once');
+                void icon.offsetWidth;
+                icon.classList.add('spin-once');
+            }
+            loadDashboardData(false).then(function() {
+                showToast('Data diperbarui', 'success');
+            });
+        }
+
+        function startAutoSync() {
+            stopAutoSync();
+            autoSyncTimer = setInterval(function() {
+                if (currentUser && !document.hidden) {
+                    loadDashboardData(false);
+                }
+            }, 15000);
+        }
+
+        function stopAutoSync() {
+            if (autoSyncTimer) {
+                clearInterval(autoSyncTimer);
+                autoSyncTimer = null;
+            }
+        }
+
+        function updateHeaderAndBadges() {
+            if (!dashboardData) return;
+
+            var elDrvSaldo = document.getElementById('headerSaldoDriver');
+            if (elDrvSaldo) elDrvSaldo.textContent = formatRupiah(dashboardData.saldo_um);
+
+            var elMfgUserSaldo = document.getElementById('headerSaldoMfgUser');
+            if (elMfgUserSaldo) elMfgUserSaldo.textContent = formatRupiah(dashboardData.saldo_kas_manufaktur);
+
+            var elKasInduk = document.getElementById('headerSaldoKasInduk');
+            if (elKasInduk) elKasInduk.textContent = formatRupiah(dashboardData.saldo_kas_induk);
+
+            var totalDrvUm = 0;
+            var drvs = dashboardData.drivers || [];
+            for (var i = 0; i < drvs.length; i++) {
+                totalDrvUm += (parseFloat(drvs[i].saldo_um) || 0);
+            }
+            var elTotalDrv = document.getElementById('headerTotalDriver');
+            if (elTotalDrv) elTotalDrv.textContent = formatRupiah(totalDrvUm);
+
+            var elKasMfg = document.getElementById('headerSaldoKasManufaktur');
+            if (elKasMfg) elKasMfg.textContent = formatRupiah(dashboardData.saldo_kas_manufaktur);
+
+            var totalMfgExp = 0;
+            var mfgTrxs = dashboardData.transaksi_mfg || [];
+            for (var j = 0; j < mfgTrxs.length; j++) {
+                if (mfgTrxs[j].status === 'Approved') {
+                    totalMfgExp += (parseFloat(mfgTrxs[j].nominal) || 0);
+                }
+            }
+            var elMfgExp = document.getElementById('headerTotalMfgExpense');
+            if (elMfgExp) elMfgExp.textContent = formatRupiah(totalMfgExp);
+
+            // Badges
+            var pendingTopups = (dashboardData.driver_topups || []).filter(function(k) { return k.status_topup === 'Pending'; }).length;
+            setBadgeCount('navBadgeTopupDesktop', pendingTopups);
+            setBadgeCount('navBadgeTopupMobile', pendingTopups);
+
+            var activeTrxList = (activeMode === 'Manufaktur') ? (dashboardData.transaksi_mfg || []) : (dashboardData.transaksi || []);
+            var activeReqList = (activeMode === 'Manufaktur') ? (dashboardData.request_perubahan_mfg || []) : (dashboardData.request_perubahan || []);
+            var pendingAppCount = activeTrxList.filter(function(t) { return t.status === 'Pending'; }).length +
+                                  activeReqList.filter(function(r) { return r.status_request === 'Pending'; }).length;
+            setBadgeCount('navBadgeApprovalDesktop', pendingAppCount);
+            setBadgeCount('navBadgeApprovalMobile', pendingAppCount);
+        }
+
+        function setBadgeCount(elId, count) {
+            var el = document.getElementById(elId);
+            if (!el) return;
+            if (count > 0) {
+                el.textContent = count;
+                el.classList.remove('hide');
+            } else {
+                el.classList.add('hide');
+            }
+        }
+
+        // =========================================================================
+        // 8. FILTER & RENDER BERANDA TRANSAKSI
+        // =========================================================================
+        function populateFilterDropdowns() {
+            if (!dashboardData || !isAdminUser()) return;
+            var isMfg = (activeMode === 'Manufaktur');
+            var userList = isMfg ? (dashboardData.manufaktur_users || []) : (dashboardData.drivers || []);
+
+            var homeSel = document.getElementById('adminHomeDriverFilter');
+            var repSel = document.getElementById('repFilterDriver');
+            var repLbl = document.getElementById('repFilterDriverLabel');
+
+            if (repLbl) repLbl.textContent = isMfg ? 'Pilih Staf Manufaktur' : 'Pilih Driver / Ops';
+
+            var optsHtml = isMfg
+                ? '<option value="ALL">Semua Staf Manufaktur</option>'
+                : '<option value="ALL">Semua Kas Driver &amp; Operasional</option>';
+
+            for (var i = 0; i < userList.length; i++) {
+                var u = userList[i];
+                optsHtml += '<option value="' + escapeAttr(u.id_user) + '">' + escapeHtml(u.nama_lengkap) + ' (' + escapeHtml(u.role) + ')</option>';
+            }
+
+            if (homeSel) {
+                var prevH = homeSel.value;
+                homeSel.innerHTML = optsHtml;
+                if (prevH) homeSel.value = prevH;
+            }
+            if (repSel) {
+                var prevR = repSel.value;
+                repSel.innerHTML = optsHtml;
+                if (prevR) repSel.value = prevR;
+            }
+        }
+
+        function renderDashboardUI() {
+            if (!dashboardData) return;
+            var isMfg = (activeMode === 'Manufaktur');
+            var list = isMfg ? (dashboardData.transaksi_mfg || []) : (dashboardData.transaksi || []);
+
+            var userFilter = document.getElementById('adminHomeDriverFilter') ? document.getElementById('adminHomeDriverFilter').value : 'ALL';
+            var statusFilter = document.getElementById('homeStatusFilter') ? document.getElementById('homeStatusFilter').value : 'ALL';
+            var searchKw = document.getElementById('homeSearchInput') ? String(document.getElementById('homeSearchInput').value || '').toLowerCase().trim() : '';
+
+            var filtered = list.filter(function(item) {
+                if (isAdminUser() && userFilter !== 'ALL' && item.id_user !== userFilter) return false;
+                if (statusFilter !== 'ALL' && item.status !== statusFilter) return false;
+                if (searchKw) {
+                    var hay = (item.id_transaksi + ' ' + item.kategori + ' ' + item.keterangan + ' ' + item.nama_driver).toLowerCase();
+                    if (hay.indexOf(searchKw) === -1) return false;
+                }
+                return true;
+            });
+
+            renderDriverMyRequests();
+
+            var container = document.getElementById('listTransaksi');
+            if (!container) return;
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="bg-white p-8 rounded-3xl border border-slate-100 text-center text-slate-400 text-xs font-semibold">Belum ada catatan transaksi yang sesuai filter.</div>';
+                return;
+            }
+
+            var html = '';
+            for (var i = 0; i < filtered.length; i++) {
+                var t = filtered[i];
+                var badgeCls = 'bg-amber-50 text-amber-700 border-amber-200';
+                if (t.status === 'Approved') badgeCls = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                else if (t.status === 'Rejected') badgeCls = 'bg-rose-50 text-rose-700 border-rose-200';
+
+                html += '<div class="bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-2.5">' +
+                    '<div class="flex items-start justify-between gap-2">' +
+                        '<div class="min-w-0">' +
+                            '<div class="flex flex-wrap items-center gap-1.5">' +
+                                '<span class="text-[10px] font-extrabold text-slate-400">' + escapeHtml(t.id_transaksi) + '</span>' +
+                                '<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full border ' + badgeCls + '">' + escapeHtml(t.status) + '</span>' +
+                                (isAdminUser() ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">' + escapeHtml(t.nama_driver) + '</span>' : '') +
+                            '</div>' +
+                            '<h4 class="font-extrabold text-slate-900 text-sm mt-1">' + escapeHtml(t.kategori) + '</h4>' +
+                            (t.keterangan ? '<p class="text-xs text-slate-500 mt-0.5">' + escapeHtml(t.keterangan) + '</p>' : '') +
+                        '</div>' +
+                        '<div class="text-right shrink-0">' +
+                            '<p class="font-extrabold text-slate-900 text-sm md:text-base">' + formatRupiah(t.nominal) + '</p>' +
+                            '<p class="text-[10px] text-slate-400 mt-0.5">' + escapeHtml(t.tanggal) + '</p>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">' +
+                        '<div class="flex items-center gap-2">' +
+                            (t.url_nota
+                                ? '<button type="button" onclick="previewNotaImage(\'' + escapeAttr(t.url_nota) + '\')" class="text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-image"></i> Lihat Nota</button>'
+                                : '<span class="text-[10px] text-slate-400 italic">Tanpa foto nota</span>') +
+                        '</div>' +
+                        '<div class="flex items-center gap-1.5">' +
+                            (isAdminUser()
+                                ? '<button type="button" onclick="openAdminEditTrxModal(\'' + escapeAttr(t.id_transaksi) + '\')" class="text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-pencil-simple"></i> Edit</button>' +
+                                  '<button type="button" onclick="confirmAdminDeleteTrx(\'' + escapeAttr(t.id_transaksi) + '\')" class="text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-trash"></i> Hapus</button>'
+                                : '<button type="button" onclick="openDriverRequestModal(\'' + escapeAttr(t.id_transaksi) + '\')" class="text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-note-pencil"></i> Ajukan Edit / Hapus</button>') +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function renderDriverMyRequests() {
+            var card = document.getElementById('driverMyRequestsCard');
+            var listEl = document.getElementById('listDriverRequestsStatus');
+            if (!card || !listEl || isAdminUser() || !dashboardData) return;
+
+            var reqs = (activeMode === 'Manufaktur') ? (dashboardData.request_perubahan_mfg || []) : (dashboardData.request_perubahan || []);
+            if (reqs.length === 0) {
+                card.classList.add('hide');
+                return;
+            }
+            card.classList.remove('hide');
+            var html = '';
+            for (var i = 0; i < reqs.length; i++) {
+                var r = reqs[i];
+                var badge = r.status_request === 'Approved' ? 'bg-emerald-100 text-emerald-700' : (r.status_request === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700');
+                html += '<div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2 text-xs">' +
+                    '<div>' +
+                        '<span class="font-bold text-slate-800">' + escapeHtml(r.jenis_request) + '</span> &bull; <span class="text-slate-500">' + escapeHtml(r.id_transaksi) + '</span>' +
+                        '<p class="text-[11px] text-slate-500">Alasan: ' + escapeHtml(r.alasan) + '</p>' +
+                    '</div>' +
+                    '<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ' + badge + '">' + escapeHtml(r.status_request) + '</span>' +
+                '</div>';
+            }
+            listEl.innerHTML = html;
+        }
+
+        function previewNotaImage(url) {
+            if (!url) return;
+            var imgUrl = url;
+            var match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (match && match[1]) {
+                imgUrl = 'https://drive.google.com/thumbnail?id=' + match[1] + '&sz=w1000';
+            }
+            Swal.fire({
+                title: 'Bukti Nota',
+                html: '<div class="space-y-3">' +
+                    '<img src="' + escapeAttr(imgUrl) + '" onerror="this.style.display=\'none\'" class="max-h-80 mx-auto rounded-2xl border border-slate-200">' +
+                    '<a href="' + escapeAttr(url) + '" target="_blank" rel="noopener" class="inline-block text-xs font-bold text-indigo-600 underline">Buka File Asli di Google Drive &rarr;</a>' +
+                '</div>',
+                confirmButtonColor: '#4f46e5',
+                confirmButtonText: 'Tutup',
+                customClass: { popup: 'rounded-3xl' }
+            });
+        }
+
+        // =========================================================================
+        // 9. INPUT NOTA BARU & KOMPRESI FOTO
+        // =========================================================================
+        function populateInputKategoriDropdown() {
+            var sel = document.getElementById('inputKategoriSelect');
+            if (!sel || !dashboardData) return;
+
+            var list = (activeMode === 'Manufaktur') ? (dashboardData.kategori_mfg_aktif || []) : (dashboardData.kategori_aktif || []);
+            var html = '';
+            for (var i = 0; i < list.length; i++) {
+                html += '<option value="' + escapeAttr(list[i]) + '">' + escapeHtml(list[i]) + '</option>';
+            }
+            html += '<option value="__MANUAL__">-- Ketik Kategori / Keterangan Manual --</option>';
+            sel.innerHTML = html;
+            if (list.length > 0) {
+                sel.value = list[0];
+            } else {
+                sel.value = '__MANUAL__';
+            }
+            handleKategoriChange();
+        }
+
+        function handleKategoriChange() {
+            var sel = document.getElementById('inputKategoriSelect');
+            var box = document.getElementById('inputKategoriManualBox');
+            if (!sel || !box) return;
+            if (sel.value === '__MANUAL__') {
+                box.classList.remove('hide');
+            } else {
+                box.classList.add('hide');
+            }
+        }
+
+        function handleNotaFileSelect(inputEl) {
+            if (!inputEl || !inputEl.files || !inputEl.files[0]) return;
+            var file = inputEl.files[0];
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var img = new Image();
+                img.onload = function() {
+                    var canvas = document.createElement('canvas');
+                    var maxDim = 1024;
+                    var w = img.width;
+                    var h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) {
+                            h = Math.round(h * maxDim / w);
+                            w = maxDim;
+                        } else {
+                            w = Math.round(w * maxDim / h);
+                            h = maxDim;
+                        }
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    var ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    var compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+                    notaBase64Data = compressedDataUrl.split(',')[1];
+                    notaMimeTypeData = 'image/jpeg';
+
+                    document.getElementById('previewNotaImg').src = compressedDataUrl;
+                    document.getElementById('previewNotaBox').classList.remove('hide');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearNotaPreview() {
+            notaBase64Data = '';
+            var inp = document.getElementById('inputFotoNota');
+            if (inp) inp.value = '';
+            document.getElementById('previewNotaImg').src = '';
+            document.getElementById('previewNotaBox').classList.add('hide');
+        }
+
+        function submitNotaForm() {
+            if (!currentUser) return;
+            var sel = document.getElementById('inputKategoriSelect').value;
+            var kategori = sel === '__MANUAL__'
+                ? String(document.getElementById('inputKategoriManual').value || '').trim()
+                : String(sel || '').trim();
+            var ketManual = String(document.getElementById('inputKeteranganManual').value || '').trim();
+            var nominal = parseFloat(document.getElementById('inputNominal').value) || 0;
+
+            if (!kategori) {
+                Swal.fire({ icon: 'warning', title: 'Kategori Kosong', text: 'Pilih atau isi judul kategori pengeluaran terlebih dahulu.', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                return;
+            }
+            if (nominal <= 0) {
+                Swal.fire({ icon: 'warning', title: 'Nominal Tidak Valid', text: 'Masukkan nominal pengeluaran lebih dari Rp 0.', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                return;
+            }
+
+            showLoading('Mengirim nota & mengunggah bukti...');
+            fetchAPI({
+                action: 'submit_trx',
+                userId: currentUser.id_user,
+                divisi: activeMode,
+                kategori: kategori,
+                keterangan_manual: ketManual,
+                nominal: nominal,
+                notaBase64: notaBase64Data,
+                notaMimeType: notaMimeTypeData
+            })
+            .then(function(res) {
+                document.getElementById('inputKategoriManual').value = '';
+                document.getElementById('inputKeteranganManual').value = '';
+                document.getElementById('inputNominal').value = '';
+                clearNotaPreview();
+                return loadDashboardData(false).then(function() { return res; });
+            })
+            .then(function(res) {
+                hideLoading();
+                switchTab('dashboard');
+                Swal.fire({ icon: 'success', title: 'Berhasil', text: res.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+            })
+            .catch(function(err) {
+                hideLoading();
+                Swal.fire({ icon: 'error', title: 'Gagal Mengirim', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+            });
+        }
+
+        // =========================================================================
+        // 10. KONFIRMASI TERIMA / TOLAK TOP-UP UM (DRIVER & OPERASIONAL)
+        // =========================================================================
+        function renderDriverTopups() {
+            var container = document.getElementById('listDriverTopups');
+            if (!container || !dashboardData) return;
+
+            var list = dashboardData.driver_topups || [];
+            if (list.length === 0) {
+                container.innerHTML = '<div class="bg-white p-8 rounded-3xl border border-slate-100 text-center text-slate-400 text-xs font-semibold">Belum ada riwayat transfer saldo UM masuk.</div>';
+                return;
+            }
+
+            var html = '';
+            for (var i = 0; i < list.length; i++) {
+                var item = list[i];
+                var isPending = item.status_topup === 'Pending';
+                var badgeCls = isPending ? 'bg-amber-100 text-amber-800' : (item.status_topup === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700');
+                var statusLabel = isPending ? 'Menunggu Konfirmasi Anda' : (item.status_topup === 'Rejected' ? 'Ditolak (Dikembalikan)' : 'Diterima');
+
+                html += '<div class="bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-3">' +
+                    '<div class="flex items-start justify-between gap-2">' +
+                        '<div>' +
+                            '<span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ' + badgeCls + '">' + statusLabel + '</span>' +
+                            '<h4 class="font-extrabold text-slate-900 text-base mt-1.5">' + formatRupiah(item.nominal) + '</h4>' +
+                            '<p class="text-xs text-slate-500 mt-0.5">' + escapeHtml(item.keterangan) + '</p>' +
+                        '</div>' +
+                        '<div class="text-right text-[10px] text-slate-400">' +
+                            '<p class="font-bold">' + escapeHtml(item.id_kas) + '</p>' +
+                            '<p>' + escapeHtml(item.tanggal) + '</p>' +
+                        '</div>' +
+                    '</div>' +
+                    (isPending
+                        ? '<div class="pt-2 border-t border-slate-100 grid grid-cols-2 gap-2">' +
+                            '<button type="button" onclick="confirmDriverTopup(\'' + escapeAttr(item.id_kas) + '\', \'Accepted\')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl">Terima Saldo</button>' +
+                            '<button type="button" onclick="confirmDriverTopup(\'' + escapeAttr(item.id_kas) + '\', \'Rejected\')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs py-2.5 rounded-xl">Tolak (Kembalikan)</button>' +
+                          '</div>'
+                        : '') +
+                '</div>';
+            }
+            container.innerHTML = html;
+        }
+
+        function confirmDriverTopup(idKas, keputusan) {
+            if (keputusan === 'Accepted') {
+                Swal.fire({
+                    title: 'Terima Saldo Top-Up?',
+                    text: 'Saldo UM Anda akan langsung bertambah sesuai nominal transfer.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#10b981',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Ya, Terima Saldo',
+                    cancelButtonText: 'Batal',
+                    customClass: { popup: 'rounded-3xl' }
+                }).then(function(res) {
+                    if (!res.isConfirmed) return;
+                    showLoading('Memproses penerimaan saldo...');
+                    fetchAPI({
+                        action: 'confirm_topup_driver',
+                        id_kas: idKas,
+                        userId: currentUser.id_user,
+                        keputusan: 'Accepted'
+                    })
+                    .then(function(data) {
+                        return loadDashboardData(false).then(function() { return data; });
+                    })
+                    .then(function(data) {
+                        hideLoading();
+                        Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    })
+                    .catch(function(err) {
+                        hideLoading();
+                        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    });
+                });
+            } else {
+                Swal.fire({
+                    title: 'Tolak & Kembalikan Top-Up?',
+                    input: 'text',
+                    inputLabel: 'Alasan penolakan (misal: salah nominal / salah tujuan)',
+                    inputPlaceholder: 'Tulis alasan...',
+                    showCancelButton: true,
+                    confirmButtonColor: '#e11d48',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: 'Tolak & Kembalikan ke Kas',
+                    cancelButtonText: 'Batal',
+                    customClass: { popup: 'rounded-3xl' }
+                }).then(function(res) {
+                    if (!res.isConfirmed) return;
+                    showLoading('Mengembalikan saldo ke Kas Induk...');
+                    fetchAPI({
+                        action: 'confirm_topup_driver',
+                        id_kas: idKas,
+                        userId: currentUser.id_user,
+                        keputusan: 'Rejected',
+                        alasan: res.value || 'Ditolak oleh penerima'
+                    })
+                    .then(function(data) {
+                        return loadDashboardData(false).then(function() { return data; });
+                    })
+                    .then(function(data) {
+                        hideLoading();
+                        Swal.fire({ icon: 'info', title: 'Top-Up Ditolak', text: data.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    })
+                    .catch(function(err) {
+                        hideLoading();
+                        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    });
+                });
+            }
+        }
+
+        // =========================================================================
+        // 11. APPROVAL ADMIN (NOTA BARU & REQUEST PERUBAHAN)
+        // =========================================================================
+        function renderApproval() {
+            if (!dashboardData || !isAdminUser()) return;
+            var isMfg = (activeMode === 'Manufaktur');
+            var trxs = (isMfg ? (dashboardData.transaksi_mfg || []) : (dashboardData.transaksi || [])).filter(function(t) { return t.status === 'Pending'; });
+            var reqs = (isMfg ? (dashboardData.request_perubahan_mfg || []) : (dashboardData.request_perubahan || [])).filter(function(r) { return r.status_request === 'Pending'; });
+
+            var cTrxEl = document.getElementById('approvalPendingTrxCount');
+            var cReqEl = document.getElementById('approvalPendingReqCount');
+            if (cTrxEl) cTrxEl.textContent = trxs.length + ' Pending';
+            if (cReqEl) cReqEl.textContent = reqs.length + ' Request';
+
+            var trxContainer = document.getElementById('listPendingTrx');
+            if (trxContainer) {
+                if (trxs.length === 0) {
+                    trxContainer.innerHTML = '<div class="bg-white p-6 rounded-3xl border border-slate-100 text-center text-slate-400 text-xs font-semibold">Tidak ada antrean nota baru saat ini.</div>';
+                } else {
+                    var h = '';
+                    for (var i = 0; i < trxs.length; i++) {
+                        var t = trxs[i];
+                        h += '<div class="bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-3">' +
+                            '<div class="flex items-start justify-between gap-2">' +
+                                '<div>' +
+                                    '<span class="text-[10px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">' + escapeHtml(t.nama_driver) + ' (' + escapeHtml(t.role_user) + ')</span>' +
+                                    '<h4 class="font-extrabold text-slate-900 text-sm mt-1">' + escapeHtml(t.kategori) + '</h4>' +
+                                    (t.keterangan ? '<p class="text-xs text-slate-500 mt-0.5">' + escapeHtml(t.keterangan) + '</p>' : '') +
+                                    '<p class="text-[10px] text-slate-400 mt-1">' + escapeHtml(t.id_transaksi) + ' &bull; ' + escapeHtml(t.tanggal) + '</p>' +
+                                '</div>' +
+                                '<p class="font-extrabold text-base text-slate-900 shrink-0">' + formatRupiah(t.nominal) + '</p>' +
+                            '</div>' +
+                            '<div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">' +
+                                (t.url_nota
+                                    ? '<button type="button" onclick="previewNotaImage(\'' + escapeAttr(t.url_nota) + '\')" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl flex items-center gap-1"><i class="ph ph-image"></i> Cek Foto Nota</button>'
+                                    : '<span class="text-[11px] text-slate-400 italic">Tanpa foto bukti</span>') +
+                                '<div class="flex gap-2">' +
+                                    '<button type="button" onclick="processApprovalTrx(\'' + escapeAttr(t.id_transaksi) + '\', \'Rejected\')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-3.5 py-2 rounded-xl">Tolak</button>' +
+                                    '<button type="button" onclick="processApprovalTrx(\'' + escapeAttr(t.id_transaksi) + '\', \'Approved\')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs">Setujui</button>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>';
+                    }
+                    trxContainer.innerHTML = h;
+                }
+            }
+
+            var reqContainer = document.getElementById('listPendingReq');
+            if (reqContainer) {
+                if (reqs.length === 0) {
+                    reqContainer.innerHTML = '<div class="bg-white p-6 rounded-3xl border border-slate-100 text-center text-slate-400 text-xs font-semibold">Tidak ada pengajuan edit/hapus nota.</div>';
+                } else {
+                    var hr = '';
+                    for (var j = 0; j < reqs.length; j++) {
+                        var r = reqs[j];
+                        var detailBaru = '';
+                        if (r.jenis_request === 'Request Edit' && r.data_baru) {
+                            detailBaru = '<div class="p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-100 text-[11px] space-y-0.5">' +
+                                '<p class="font-bold text-indigo-800">Usulan Perubahan:</p>' +
+                                '<p>Kategori: <b>' + escapeHtml(r.data_baru.kategori || '-') + '</b></p>' +
+                                '<p>Keterangan: <b>' + escapeHtml(r.data_baru.keterangan_manual || '-') + '</b></p>' +
+                                '<p>Nominal Baru: <b>' + formatRupiah(r.data_baru.nominal || 0) + '</b></p>' +
+                            '</div>';
+                        }
+                        hr += '<div class="bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-2.5">' +
+                            '<div class="flex items-center justify-between">' +
+                                '<span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ' + (r.jenis_request === 'Request Delete' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800') + '">' + escapeHtml(r.jenis_request) + '</span>' +
+                                '<span class="text-[10px] font-bold text-slate-400">' + escapeHtml(r.id_request) + ' &bull; ' + escapeHtml(r.id_transaksi) + '</span>' +
+                            '</div>' +
+                            '<p class="text-xs font-bold text-slate-800">Pemohon: ' + escapeHtml(r.nama_driver) + '</p>' +
+                            '<p class="text-xs text-slate-600">Alasan: <span class="italic">"' + escapeHtml(r.alasan) + '"</span></p>' +
+                            (r.trx_lama ? '<p class="text-[11px] text-slate-400">Data Asli: ' + escapeHtml(r.trx_lama.kategori) + ' (' + formatRupiah(r.trx_lama.nominal) + ' - ' + escapeHtml(r.trx_lama.status) + ')</p>' : '') +
+                            detailBaru +
+                            '<div class="pt-2 border-t border-slate-100 flex justify-end gap-2">' +
+                                '<button type="button" onclick="processApprovalRequest(\'' + escapeAttr(r.id_request) + '\', \'Rejected\')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-3.5 py-2 rounded-xl">Tolak</button>' +
+                                '<button type="button" onclick="processApprovalRequest(\'' + escapeAttr(r.id_request) + '\', \'Approved\')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl">Setujui Perubahan</button>' +
+                            '</div>' +
+                        '</div>';
+                    }
+                    reqContainer.innerHTML = hr;
+                }
+            }
+        }
+
+        function processApprovalTrx(idTrx, keputusan) {
+            showLoading('Memproses ' + keputusan + '...');
+            fetchAPI({
+                action: 'approve_trx',
+                id_transaksi: idTrx,
+                keputusan: keputusan,
+                pic_nama: currentUser.nama_lengkap
+            })
+            .then(function(res) {
+                return loadDashboardData(false).then(function() { return res; });
+            })
+            .then(function(res) {
+                hideLoading();
+                showToast(res.message, 'success');
+            })
+            .catch(function(err) {
+                hideLoading();
+                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+            });
+        }
+
+        function processApprovalRequest(idReq, keputusan) {
+            showLoading('Memproses pengajuan...');
+            fetchAPI({
+                action: 'approve_request_perubahan',
+                id_request: idReq,
+                keputusan: keputusan,
+                pic_nama: currentUser.nama_lengkap
+            })
+            .then(function(res) {
+                return loadDashboardData(false).then(function() { return res; });
+            })
+            .then(function(res) {
+                hideLoading();
+                showToast(res.message, 'success');
+            })
+            .catch(function(err) {
+                hideLoading();
+                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+            });
+        }
+
+        // =========================================================================
+        // 12. KAS INDUK DISTRIBUSI & KAS MANUFAKTUR (ADMIN)
+        // =========================================================================
+        function renderKasIndukAndManufaktur() {
+            if (!dashboardData || !isAdminUser()) return;
+
+            var kasIndukBal = parseFloat(dashboardData.saldo_kas_induk) || 0;
+            var elMainKas = document.getElementById('kasIndukMainBalance');
+            if (elMainKas) elMainKas.textContent = formatRupiah(kasIndukBal);
+
+            var warnEmpty = document.getElementById('kasIndukWarningEmpty');
+            var btnTopupDrv = document.getElementById('btnOpenTopupDriver');
+            if (kasIndukBal <= 0) {
+                if (warnEmpty) warnEmpty.classList.remove('hide');
+                if (btnTopupDrv) btnTopupDrv.disabled = true;
+            } else {
+                if (warnEmpty) warnEmpty.classList.add('hide');
+                if (btnTopupDrv) btnTopupDrv.disabled = false;
+            }
+
+            // Grid Saldo Driver & Operasional
+            var gridDrv = document.getElementById('gridDriverBalances');
+            if (gridDrv) {
+                var drvs = dashboardData.drivers || [];
+                if (drvs.length === 0) {
+                    gridDrv.innerHTML = '<p class="text-xs text-slate-400 col-span-2">Belum ada akun Driver atau Operasional terdaftar.</p>';
+                } else {
+                    var gd = '';
+                    for (var i = 0; i < drvs.length; i++) {
+                        var d = drvs[i];
+                        gd += '<div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2">' +
+                            '<div class="min-w-0">' +
+                                '<p class="font-bold text-slate-900 text-xs truncate">' + escapeHtml(d.nama_lengkap) + '</p>' +
+                                '<span class="text-[10px] font-bold text-indigo-600">' + escapeHtml(d.role) + ' &bull; ' + escapeHtml(d.id_user) + '</span>' +
+                                '<p class="font-extrabold text-sm text-slate-800 mt-1">' + formatRupiah(d.saldo_um) + '</p>' +
+                            '</div>' +
+                            '<button type="button" onclick="openTopupDriverModal(\'' + escapeAttr(d.id_user) + '\')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] px-3 py-2 rounded-xl shrink-0">+ Top-Up</button>' +
+                        '</div>';
+                    }
+                    gridDrv.innerHTML = gd;
+                }
+            }
+
+            // Riwayat Mutasi Kas Distribusi
+            renderKasHistoryList('listKasIndukHistory', dashboardData.kas_induk_history || []);
+
+            // Kas Manufaktur
+            var kasMfgBal = parseFloat(dashboardData.saldo_kas_manufaktur) || 0;
+            var elMfgKas = document.getElementById('kasManufakturMainBalance');
+            if (elMfgKas) elMfgKas.textContent = formatRupiah(kasMfgBal);
+            renderKasHistoryList('listKasManufakturHistory', dashboardData.kas_manufaktur_history || []);
+        }
+
+        function renderKasHistoryList(containerId, list) {
+            var el = document.getElementById(containerId);
+            if (!el) return;
+            if (list.length === 0) {
+                el.innerHTML = '<p class="text-xs text-slate-400">Belum ada riwayat mutasi kas.</p>';
+                return;
+            }
+            var html = '';
+            for (var i = 0; i < list.length; i++) {
+                var k = list[i];
+                var isIn = k.jenis_mutasi.indexOf('In') === 0;
+                html += '<div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2 text-xs">' +
+                    '<div class="min-w-0">' +
+                        '<div class="flex items-center gap-1.5">' +
+                            '<span class="text-[10px] font-extrabold px-2 py-0.5 rounded ' + (isIn ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800') + '">' + escapeHtml(k.jenis_mutasi) + '</span>' +
+                            '<span class="text-[10px] text-slate-400">' + escapeHtml(k.tanggal) + '</span>' +
+                        '</div>' +
+                        '<p class="font-semibold text-slate-700 mt-1">' + escapeHtml(k.keterangan) + '</p>' +
+                    '</div>' +
+                    '<div class="text-right shrink-0">' +
+                        '<p class="font-extrabold ' + (isIn ? 'text-emerald-600' : 'text-slate-900') + '">' + (isIn ? '+' : '-') + formatRupiah(k.nominal) + '</p>' +
+                        '<p class="text-[10px] text-slate-400">Saldo: ' + formatRupiah(k.saldo_akhir) + '</p>' +
+                    '</div>' +
+                '</div>';
+            }
+            el.innerHTML = html;
+        }
+
+        function openTopupKasIndukModal() {
+            Swal.fire({
+                title: 'Top-Up Kas Induk Distribusi',
+                html: '<div class="text-left space-y-3 text-xs mt-2">' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal Masuk (Rp)</label><input type="number" id="swalTopupIndukNom" min="1" placeholder="1000000" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Keterangan Sumber Dana</label><input type="text" id="swalTopupIndukKet" placeholder="Contoh: Drop Kas Mingguan dari Pusat" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs"></div>' +
+                '</div>',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Simpan Top-Up',
+                cancelButtonText: 'Batal',
+                customClass: { popup: 'rounded-3xl' },
+                preConfirm: function() {
+                    var nom = parseFloat(document.getElementById('swalTopupIndukNom').value) || 0;
+                    if (nom <= 0) {
+                        Swal.showValidationMessage('Masukkan nominal lebih dari Rp 0');
+                        return false;
+                    }
+                    return {
+                        nominal: nom,
+                        keterangan: String(document.getElementById('swalTopupIndukKet').value || '').trim()
+                    };
+                }
+            }).then(function(res) {
+                if (!res.isConfirmed) return;
+                showLoading('Menambahkan saldo Kas Induk...');
+                fetchAPI({
+                    action: 'topup_kas_induk',
+                    nominal: res.value.nominal,
+                    keterangan: res.value.keterangan,
+                    pic_nama: currentUser.nama_lengkap
+                })
+                .then(function(data) {
+                    return loadDashboardData(false).then(function() { return data; });
+                })
+                .then(function(data) {
+                    hideLoading();
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                })
+                .catch(function(err) {
+                    hideLoading();
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                });
+            });
+        }
+
+        function openTopupKasManufakturModal() {
+            Swal.fire({
+                title: 'Top-Up Kas Manufaktur',
+                html: '<div class="text-left space-y-3 text-xs mt-2">' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal Masuk Kas Pabrik (Rp)</label><input type="number" id="swalTopupMfgNom" min="1" placeholder="2000000" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Keterangan</label><input type="text" id="swalTopupMfgKet" placeholder="Contoh: Anggaran Operasional Pabrik" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs"></div>' +
+                '</div>',
+                showCancelButton: true,
+                confirmButtonColor: '#0d9488',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Simpan Top-Up Pabrik',
+                cancelButtonText: 'Batal',
+                customClass: { popup: 'rounded-3xl' },
+                preConfirm: function() {
+                    var nom = parseFloat(document.getElementById('swalTopupMfgNom').value) || 0;
+                    if (nom <= 0) {
+                        Swal.showValidationMessage('Masukkan nominal lebih dari Rp 0');
+                        return false;
+                    }
+                    return {
+                        nominal: nom,
+                        keterangan: String(document.getElementById('swalTopupMfgKet').value || '').trim()
+                    };
+                }
+            }).then(function(res) {
+                if (!res.isConfirmed) return;
+                showLoading('Menambahkan saldo Kas Manufaktur...');
+                fetchAPI({
+                    action: 'topup_kas_manufaktur',
+                    nominal: res.value.nominal,
+                    keterangan: res.value.keterangan,
+                    pic_nama: currentUser.nama_lengkap
+                })
+                .then(function(data) {
+                    return loadDashboardData(false).then(function() { return data; });
+                })
+                .then(function(data) {
+                    hideLoading();
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, confirmButtonColor: '#0d9488', customClass: { popup: 'rounded-3xl' } });
+                })
+                .catch(function(err) {
+                    hideLoading();
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#0d9488', customClass: { popup: 'rounded-3xl' } });
+                });
+            });
+        }
+
+        function openTopupDriverModal(preselectId) {
+            var drvs = (dashboardData && dashboardData.drivers) ? dashboardData.drivers : [];
+            if (drvs.length === 0) {
+                showToast('Belum ada akun Driver atau Operasional.', 'warning');
+                return;
+            }
+            var opts = '';
+            for (var i = 0; i < drvs.length; i++) {
+                var d = drvs[i];
+                var sel = (preselectId && d.id_user === preselectId) ? ' selected' : '';
+                opts += '<option value="' + escapeAttr(d.id_user) + '"' + sel + '>' + escapeHtml(d.nama_lengkap) + ' (' + escapeHtml(d.role) + ')</option>';
+            }
+
+            Swal.fire({
+                title: 'Transfer Saldo UM',
+                html: '<div class="text-left space-y-3 text-xs mt-2">' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Penerima (Driver / Operasional)</label><select id="swalTopupDrvTarget" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-bold bg-white">' + opts + '</select></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal Transfer (Rp)</label><input type="number" id="swalTopupDrvNom" min="1" placeholder="500000" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Catatan (Opsional)</label><input type="text" id="swalTopupDrvKet" placeholder="Contoh: UM Rute Luar Kota" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs"></div>' +
+                '</div>',
+                showCancelButton: true,
+                confirmButtonColor: '#4f46e5',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Kirim Saldo UM',
+                cancelButtonText: 'Batal',
+                customClass: { popup: 'rounded-3xl' },
+                preConfirm: function() {
+                    var nom = parseFloat(document.getElementById('swalTopupDrvNom').value) || 0;
+                    if (nom <= 0) {
+                        Swal.showValidationMessage('Masukkan nominal lebih dari Rp 0');
+                        return false;
+                    }
+                    return {
+                        driver_id: document.getElementById('swalTopupDrvTarget').value,
+                        nominal: nom,
+                        keterangan: String(document.getElementById('swalTopupDrvKet').value || '').trim()
+                    };
+                }
+            }).then(function(res) {
+                if (!res.isConfirmed) return;
+                showLoading('Mengirim transfer UM...');
+                fetchAPI({
+                    action: 'topup_driver',
+                    driver_id: res.value.driver_id,
+                    nominal: res.value.nominal,
+                    keterangan: res.value.keterangan,
+                    pic_nama: currentUser.nama_lengkap
+                })
+                .then(function(data) {
+                    return loadDashboardData(false).then(function() { return data; });
+                })
+                .then(function(data) {
+                    hideLoading();
+                    Swal.fire({ icon: 'success', title: 'Top-Up Terkirim', text: data.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                })
+                .catch(function(err) {
+                    hideLoading();
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                });
+            });
+        }
+
+        // =========================================================================
+        // 13. LAPORAN & EXPORT EXCEL (.XLSX)
+        // =========================================================================
+        function getFilteredLaporanData() {
+            if (!dashboardData) return [];
+            var isMfg = (activeMode === 'Manufaktur');
+            var list = isMfg ? (dashboardData.transaksi_mfg || []) : (dashboardData.transaksi || []);
+
+            var uVal = document.getElementById('repFilterDriver') ? document.getElementById('repFilterDriver').value : 'ALL';
+            var sVal = document.getElementById('repFilterStatus') ? document.getElementById('repFilterStatus').value : 'ALL';
+            var dStart = document.getElementById('repFilterStart') ? document.getElementById('repFilterStart').value : '';
+            var dEnd = document.getElementById('repFilterEnd') ? document.getElementById('repFilterEnd').value : '';
+
+            return list.filter(function(t) {
+                if (uVal !== 'ALL' && t.id_user !== uVal) return false;
+                if (sVal !== 'ALL' && t.status !== sVal) return false;
+                if (dStart && t.tanggal_iso && t.tanggal_iso < dStart) return false;
+                if (dEnd && t.tanggal_iso && t.tanggal_iso > dEnd) return false;
+                return true;
+            });
+        }
+
+        function renderLaporan() {
+            if (!dashboardData || !isAdminUser()) return;
+            var data = getFilteredLaporanData();
+            var totApp = 0;
+            var totPend = 0;
+
+            for (var i = 0; i < data.length; i++) {
+                var nom = parseFloat(data[i].nominal) || 0;
+                if (data[i].status === 'Approved') totApp += nom;
+                else if (data[i].status === 'Pending') totPend += nom;
+            }
+
+            document.getElementById('repTotalCount').textContent = data.length;
+            document.getElementById('repTotalApproved').textContent = formatRupiah(totApp);
+            document.getElementById('repTotalPending').textContent = formatRupiah(totPend);
+
+            var previewEl = document.getElementById('listLaporanPreview');
+            if (!previewEl) return;
+            if (data.length === 0) {
+                previewEl.innerHTML = '<div class="bg-white p-6 rounded-3xl border border-slate-100 text-center text-slate-400 text-xs">Tidak ada data laporan pada filter ini.</div>';
+                return;
+            }
+
+            var html = '';
+            for (var j = 0; j < data.length; j++) {
+                var t = data[j];
+                html += '<div class="bg-white p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between gap-2 text-xs">' +
+                    '<div class="min-w-0">' +
+                        '<p class="font-extrabold text-slate-800 truncate">' + escapeHtml(t.kategori) + ' <span class="font-normal text-slate-400">(' + escapeHtml(t.nama_driver) + ')</span></p>' +
+                        '<p class="text-[11px] text-slate-500 truncate">' + escapeHtml(t.tanggal) + (t.keterangan ? ' &bull; ' + escapeHtml(t.keterangan) : '') + '</p>' +
+                    '</div>' +
+                    '<div class="text-right shrink-0">' +
+                        '<p class="font-extrabold text-slate-900">' + formatRupiah(t.nominal) + '</p>' +
+                        '<span class="text-[10px] font-bold ' + (t.status === 'Approved' ? 'text-emerald-600' : (t.status === 'Rejected' ? 'text-rose-600' : 'text-amber-600')) + '">' + escapeHtml(t.status) + '</span>' +
+                    '</div>' +
+                '</div>';
+            }
+            previewEl.innerHTML = html;
+        }
+
+        function exportLaporanExcel() {
+            var data = getFilteredLaporanData();
+            if (data.length === 0) {
+                showToast('Tidak ada data untuk diunduh.', 'warning');
+                return;
+            }
+            var rows = data.map(function(t, idx) {
+                return {
+                    'No': idx + 1,
+                    'ID Transaksi': t.id_transaksi,
+                    'Divisi': t.divisi || activeMode,
+                    'Tanggal': t.tanggal,
+                    'Nama User': t.nama_driver,
+                    'Role': t.role_user,
+                    'Kategori': t.kategori,
+                    'Keterangan': t.keterangan,
+                    'Nominal (Rp)': parseFloat(t.nominal) || 0,
+                    'Status': t.status,
+                    'Approved By': t.approved_by,
+                    'Link Nota': t.url_nota
+                };
+            });
+
+            var ws = XLSX.utils.json_to_sheet(rows);
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Laporan_' + activeMode);
+            XLSX.writeFile(wb, 'Laporan_PettyCash_' + activeMode + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+            showToast('File Excel berhasil diunduh!', 'success');
+        }
+
+        // =========================================================================
+        // 14. PENGATURAN, MASTER KETERANGAN & CRUD AKUN (ADMIN)
+        // =========================================================================
+        function renderPengaturan() {
+            if (!dashboardData || !isAdminUser()) return;
+            var isMfg = (activeMode === 'Manufaktur');
+
+            // Master Keterangan
+            var katEl = document.getElementById('listMasterKategori');
+            if (katEl) {
+                var kats = isMfg ? (dashboardData.kategori_mfg_all || []) : (dashboardData.kategori_all || []);
+                if (kats.length === 0) {
+                    katEl.innerHTML = '<p class="text-xs text-slate-400">Belum ada pilihan keterangan untuk mode ' + activeMode + '.</p>';
+                } else {
+                    var kh = '';
+                    for (var i = 0; i < kats.length; i++) {
+                        var k = kats[i];
+                        kh += '<div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2 text-xs">' +
+                            '<span class="font-bold text-slate-800">' + escapeHtml(k.nama_kategori) + '</span>' +
+                            '<button type="button" onclick="deleteKategoriItem(\'' + escapeAttr(k.id_kategori) + '\')" class="text-rose-600 hover:bg-rose-50 px-2.5 py-1 rounded-lg font-bold">Hapus</button>' +
+                        '</div>';
+                    }
+                    katEl.innerHTML = kh;
+                }
+            }
+
+            // Daftar Akun
+            var usrEl = document.getElementById('listAllUsers');
+            if (usrEl) {
+                var users = dashboardData.all_users || [];
+                var uh = '';
+                for (var j = 0; j < users.length; j++) {
+                    var u = users[j];
+                    var showUm = (u.role === 'Driver' || u.role === 'Operasional');
+                    uh += '<div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">' +
+                        '<div>' +
+                            '<p class="font-extrabold text-slate-900">' + escapeHtml(u.nama_lengkap) + ' <span class="font-normal text-slate-400">(@' + escapeHtml(u.username) + ')</span></p>' +
+                            '<p class="text-[11px] text-slate-500 mt-0.5">Role: <b>' + escapeHtml(u.role) + '</b>' + (showUm ? ' &bull; Saldo UM: <b>' + formatRupiah(u.saldo_um) + '</b>' : '') + ' &bull; Status: <b>' + escapeHtml(u.status) + '</b></p>' +
+                        '</div>' +
+                        '<div class="flex gap-1.5">' +
+                            '<button type="button" onclick="openEditUserModal(\'' + escapeAttr(u.id_user) + '\')" class="bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold px-2.5 py-1.5 rounded-lg">Edit</button>' +
+                            (u.id_user !== currentUser.id_user
+                                ? '<button type="button" onclick="deleteUserItem(\'' + escapeAttr(u.id_user) + '\', \'' + escapeAttr(u.nama_lengkap) + '\')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-2.5 py-1.5 rounded-lg">Hapus</button>'
+                                : '') +
+                        '</div>' +
+                    '</div>';
+                }
+                usrEl.innerHTML = uh;
+            }
+        }
+
+        function submitAddKategori() {
+            var inp = document.getElementById('newKategoriInput');
+            var val = inp ? String(inp.value || '').trim() : '';
+            if (!val) return;
+            showLoading('Menambahkan pilihan keterangan...');
+            fetchAPI({
+                action: 'add_kategori',
+                nama_kategori: val,
+                divisi: activeMode
+            })
+            .then(function(res) {
+                inp.value = '';
+                return loadDashboardData(false).then(function() { return res; });
+            })
+            .then(function(res) {
+                hideLoading();
+                showToast(res.message, 'success');
+            })
+            .catch(function(err) {
+                hideLoading();
+                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+            });
+        }
+
+        function deleteKategoriItem(idKat) {
+            showLoading('Menghapus pilihan...');
+            fetchAPI({
+                action: 'delete_kategori',
+                id_kategori: idKat
+            })
+            .then(function(res) {
+                return loadDashboardData(false).then(function() { return res; });
+            })
+            .then(function(res) {
+                hideLoading();
+                showToast(res.message, 'success');
+            })
+            .catch(function(err) {
+                hideLoading();
+                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+            });
+        }
+
+        function submitAddUser() {
+            var nama = String(document.getElementById('addNamaLengkap').value || '').trim();
+            var role = document.getElementById('addRole').value;
+            var username = String(document.getElementById('addUsername').value || '').trim();
+            var password = String(document.getElementById('addPassword').value || '').trim();
+            var saldoUm = parseFloat(document.getElementById('addSaldoUm').value) || 0;
+
+            if (!nama || !username || !password) {
+                Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', text: 'Nama lengkap, username, dan password wajib diisi.', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                return;
+            }
+
+            showLoading('Menyimpan akun baru...');
+            fetchAPI({
+                action: 'add_user',
+                nama_lengkap: nama,
+                role: role,
+                username: username,
+                password: password,
+                saldo_um: saldoUm
+            })
+            .then(function(res) {
+                document.getElementById('addNamaLengkap').value = '';
+                document.getElementById('addUsername').value = '';
+                document.getElementById('addPassword').value = '';
+                document.getElementById('addSaldoUm').value = '0';
+                return loadDashboardData(false).then(function() { return res; });
+            })
+            .then(function(res) {
+                hideLoading();
+                Swal.fire({ icon: 'success', title: 'Berhasil', text: res.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+            })
+            .catch(function(err) {
+                hideLoading();
+                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+            });
+        }
+
+        function openEditUserModal(idUser) {
+            var users = (dashboardData && dashboardData.all_users) ? dashboardData.all_users : [];
+            var target = null;
+            for (var i = 0; i < users.length; i++) {
+                if (users[i].id_user === idUser) { target = users[i]; break; }
+            }
+            if (!target) return;
+
+            Swal.fire({
+                title: 'Edit Akun ' + target.nama_lengkap,
+                html: '<div class="text-left space-y-2.5 text-xs mt-2">' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Nama Lengkap</label><input type="text" id="edUsrNama" value="' + escapeAttr(target.nama_lengkap) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Username</label><input type="text" id="edUsrUser" value="' + escapeAttr(target.username) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Password Baru (Kosongkan jika tetap)</label><input type="text" id="edUsrPass" placeholder="••••••" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Role</label><select id="edUsrRole" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white">' +
+                        '<option value="Driver"' + (target.role === 'Driver' ? ' selected' : '') + '>Driver</option>' +
+                        '<option value="Operasional"' + (target.role === 'Operasional' ? ' selected' : '') + '>Operasional</option>' +
+                        '<option value="Manufaktur"' + (target.role === 'Manufaktur' ? ' selected' : '') + '>Manufaktur</option>' +
+                        '<option value="Admin"' + (target.role === 'Admin' ? ' selected' : '') + '>Admin</option>' +
+                    '</select></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Saldo UM (Rp)</label><input type="number" id="edUsrSaldo" value="' + (parseFloat(target.saldo_um) || 0) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Status</label><select id="edUsrStatus" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white">' +
+                        '<option value="Aktif"' + (target.status === 'Aktif' ? ' selected' : '') + '>Aktif</option>' +
+                        '<option value="Nonaktif"' + (target.status === 'Nonaktif' ? ' selected' : '') + '>Nonaktif</option>' +
+                    '</select></div>' +
+                '</div>',
+                showCancelButton: true,
+                confirmButtonColor: '#4f46e5',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Simpan Perubahan',
+                cancelButtonText: 'Batal',
+                customClass: { popup: 'rounded-3xl' },
+                preConfirm: function() {
+                    return {
+                        id_user: target.id_user,
+                        nama_lengkap: String(document.getElementById('edUsrNama').value || '').trim(),
+                        username: String(document.getElementById('edUsrUser').value || '').trim(),
+                        password: String(document.getElementById('edUsrPass').value || '').trim(),
+                        role: document.getElementById('edUsrRole').value,
+                        saldo_um: parseFloat(document.getElementById('edUsrSaldo').value) || 0,
+                        status: document.getElementById('edUsrStatus').value
+                    };
+                }
+            }).then(function(res) {
+                if (!res.isConfirmed) return;
+                showLoading('Menyimpan perubahan akun...');
+                fetchAPI({
+                    action: 'admin_edit_user',
+                    id_user: res.value.id_user,
+                    nama_lengkap: res.value.nama_lengkap,
+                    username: res.value.username,
+                    password: res.value.password,
+                    role: res.value.role,
+                    saldo_um: res.value.saldo_um,
+                    status: res.value.status
+                })
+                .then(function(data) {
+                    return loadDashboardData(false).then(function() { return data; });
+                })
+                .then(function(data) {
+                    hideLoading();
+                    showToast(data.message, 'success');
+                })
+                .catch(function(err) {
+                    hideLoading();
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                });
+            });
+        }
+
+        function deleteUserItem(idUser, nama) {
+            Swal.fire({
+                title: 'Hapus Akun ' + nama + '?',
+                text: 'Akun yang dihapus tidak dapat dipulihkan.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus Permanen',
+                cancelButtonText: 'Batal',
+                customClass: { popup: 'rounded-3xl' }
+            }).then(function(res) {
+                if (!res.isConfirmed) return;
+                showLoading('Menghapus akun...');
+                fetchAPI({
+                    action: 'admin_delete_user',
+                    id_user: idUser
+                })
+                .then(function(data) {
+                    return loadDashboardData(false).then(function() { return data; });
+                })
+                .then(function(data) {
+                    hideLoading();
+                    showToast(data.message, 'success');
+                })
+                .catch(function(err) {
+                    hideLoading();
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                });
+            });
+        }
+
+        // =========================================================================
+        // 15. CRUD TRANSAKSI ADMIN & REQUEST PERUBAHAN STAF
+        // =========================================================================
+        function findTrxById(idTrx) {
+            if (!dashboardData) return null;
+            var all = (dashboardData.transaksi || []).concat(dashboardData.transaksi_mfg || []);
+            for (var i = 0; i < all.length; i++) {
+                if (all[i].id_transaksi === idTrx) return all[i];
+            }
+            return null;
+        }
+
+        function openAdminEditTrxModal(idTrx) {
+            var trx = findTrxById(idTrx);
+            if (!trx) return;
+
+            Swal.fire({
+                title: 'Edit Transaksi ' + trx.id_transaksi,
+                html: '<div class="text-left space-y-2.5 text-xs mt-2">' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Kategori</label><input type="text" id="edTrxKat" value="' + escapeAttr(trx.kategori) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Keterangan</label><input type="text" id="edTrxKet" value="' + escapeAttr(trx.keterangan) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal (Rp)</label><input type="number" id="edTrxNom" value="' + (parseFloat(trx.nominal) || 0) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Status Approval</label><select id="edTrxStat" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white">' +
+                        '<option value="Pending"' + (trx.status === 'Pending' ? ' selected' : '') + '>Pending</option>' +
+                        '<option value="Approved"' + (trx.status === 'Approved' ? ' selected' : '') + '>Approved</option>' +
+                        '<option value="Rejected"' + (trx.status === 'Rejected' ? ' selected' : '') + '>Rejected</option>' +
+                    '</select></div>' +
+                '</div>',
+                showCancelButton: true,
+                confirmButtonColor: '#4f46e5',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Simpan Perubahan',
+                cancelButtonText: 'Batal',
+                customClass: { popup: 'rounded-3xl' },
+                preConfirm: function() {
+                    return {
+                        kategori: String(document.getElementById('edTrxKat').value || '').trim(),
+                        keterangan_manual: String(document.getElementById('edTrxKet').value || '').trim(),
+                        nominal: parseFloat(document.getElementById('edTrxNom').value) || 0,
+                        status_approval: document.getElementById('edTrxStat').value
+                    };
+                }
+            }).then(function(res) {
+                if (!res.isConfirmed) return;
+                showLoading('Menyimpan perubahan transaksi...');
+                fetchAPI({
+                    action: 'admin_edit_trx',
+                    id_transaksi: trx.id_transaksi,
+                    kategori: res.value.kategori,
+                    keterangan_manual: res.value.keterangan_manual,
+                    nominal: res.value.nominal,
+                    status_approval: res.value.status_approval,
+                    pic_nama: currentUser.nama_lengkap
+                })
+                .then(function(data) {
+                    return loadDashboardData(false).then(function() { return data; });
+                })
+                .then(function(data) {
+                    hideLoading();
+                    showToast(data.message, 'success');
+                })
+                .catch(function(err) {
+                    hideLoading();
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                });
+            });
+        }
+
+        function confirmAdminDeleteTrx(idTrx) {
+            Swal.fire({
+                title: 'Hapus Transaksi ' + idTrx + '?',
+                text: 'Jika transaksi sudah Approved, saldo akan otomatis dikembalikan.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e11d48',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Hapus Transaksi',
+                cancelButtonText: 'Batal',
+                customClass: { popup: 'rounded-3xl' }
+            }).then(function(res) {
+                if (!res.isConfirmed) return;
+                showLoading('Menghapus transaksi...');
+                fetchAPI({
+                    action: 'admin_delete_trx',
+                    id_transaksi: idTrx,
+                    pic_nama: currentUser.nama_lengkap
+                })
+                .then(function(data) {
+                    return loadDashboardData(false).then(function() { return data; });
+                })
+                .then(function(data) {
+                    hideLoading();
+                    showToast(data.message, 'success');
+                })
+                .catch(function(err) {
+                    hideLoading();
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                });
+            });
+        }
+
+        function openDriverRequestModal(idTrx) {
+            var trx = findTrxById(idTrx);
+            if (!trx) return;
+
+            Swal.fire({
+                title: 'Ajukan Edit / Hapus Nota',
+                html: '<div class="text-left space-y-2.5 text-xs mt-2">' +
+                    '<p class="text-slate-500">Perubahan atau penghapusan baru berlaku setelah disetujui oleh Admin/Finance.</p>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Jenis Pengajuan</label><select id="reqJenisSel" onchange="document.getElementById(\'reqEditFields\').style.display = this.value === \'Request Edit\' ? \'block\' : \'none\'" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold">' +
+                        '<option value="Request Edit">Ajukan Edit Data / Nominal</option>' +
+                        '<option value="Request Delete">Ajukan Hapus / Batalkan Nota</option>' +
+                    '</select></div>' +
+                    '<div id="reqEditFields" class="space-y-2">' +
+                        '<div><label class="font-bold text-slate-600 block mb-1">Kategori Baru</label><input type="text" id="reqNewKat" value="' + escapeAttr(trx.kategori) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
+                        '<div><label class="font-bold text-slate-600 block mb-1">Keterangan Baru</label><input type="text" id="reqNewKet" value="' + escapeAttr(trx.keterangan) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
+                        '<div><label class="font-bold text-slate-600 block mb-1">Nominal Baru (Rp)</label><input type="number" id="reqNewNom" value="' + (parseFloat(trx.nominal) || 0) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"></div>' +
+                    '</div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Alasan Pengajuan (Wajib)</label><input type="text" id="reqAlasan" placeholder="Contoh: Salah ketik nominal nota" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
+                '</div>',
+                showCancelButton: true,
+                confirmButtonColor: '#4f46e5',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Kirim Pengajuan',
+                cancelButtonText: 'Batal',
+                customClass: { popup: 'rounded-3xl' },
+                preConfirm: function() {
+                    var alasan = String(document.getElementById('reqAlasan').value || '').trim();
+                    if (!alasan) {
+                        Swal.showValidationMessage('Alasan pengajuan wajib diisi.');
+                        return false;
+                    }
+                    return {
+                        jenis_request: document.getElementById('reqJenisSel').value,
+                        alasan: alasan,
+                        data_baru: {
+                            kategori: String(document.getElementById('reqNewKat').value || '').trim(),
+                            keterangan_manual: String(document.getElementById('reqNewKet').value || '').trim(),
+                            nominal: parseFloat(document.getElementById('reqNewNom').value) || 0
+                        }
+                    };
+                }
+            }).then(function(res) {
+                if (!res.isConfirmed) return;
+                showLoading('Mengirim pengajuan ke Admin...');
+                fetchAPI({
+                    action: 'submit_request_perubahan',
+                    id_transaksi: trx.id_transaksi,
+                    jenis_request: res.value.jenis_request,
+                    request_by: currentUser.id_user,
+                    alasan: res.value.alasan,
+                    data_baru: res.value.data_baru
+                })
+                .then(function(data) {
+                    return loadDashboardData(false).then(function() { return data; });
+                })
+                .then(function(data) {
+                    hideLoading();
+                    Swal.fire({ icon: 'success', title: 'Terkirim', text: data.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                })
+                .catch(function(err) {
+                    hideLoading();
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                });
+            });
+        }
+
+        // =========================================================================
+        // 16. INISIALISASI SAAT HALAMAN DIMUAT
+        // =========================================================================
         setupDynamicPwa();
         updateServerStatusIndicator();
         checkInstallVisibility();
