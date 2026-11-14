@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Petty Cash Pro">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Petty Cash Pro PWA</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- SheetJS (Export Excel .xlsx) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hide { display: none !important; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes spinFast {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .spin-once { animation: spinFast 0.65s ease-in-out; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-700">
+
+    <!-- ==================== OVERLAY LOADING (HANYA UNTUK AKSI SUBMIT) ==================== -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/45 backdrop-blur-xs z-[999] flex flex-col items-center justify-center hide">
+        <div class="bg-white p-6 rounded-3xl shadow-2xl flex flex-col items-center max-w-xs mx-4">
+            <div class="w-11 h-11 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p id="loadingText" class="text-sm font-bold text-slate-700 text-center">Memproses data...</p>
+        </div>
+    </div>
+
+    <!-- ==================== 1. HALAMAN LOGIN ==================== -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-100 via-indigo-50/40 to-slate-100">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-xl shadow-slate-200/70 border border-slate-100 p-7 sm:p-8">
+            <div class="text-center mb-7">
+                <div class="w-14 h-14 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center text-white text-3xl shadow-lg shadow-indigo-200 mb-3">
+                    <i class="ph-fill ph-wallet"></i>
+                </div>
+                <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Petty Cash Pro</h1>
+                <p class="text-xs text-slate-500 font-medium mt-1">Sistem Kas Operasional Distribusi &amp; Manufaktur</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Username</label>
+                    <div class="relative">
+                        <i class="ph ph-user absolute left-3.5 top-3 text-slate-400 text-lg"></i>
+                        <input type="text" id="loginUsername" autocomplete="username" onkeydown="if(event.key==='Enter') handleLoginSubmit()" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm font-medium transition-all" placeholder="Masukkan username">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Password</label>
+                    <div class="relative">
+                        <i class="ph ph-lock-simple absolute left-3.5 top-3 text-slate-400 text-lg"></i>
+                        <input type="password" id="loginPassword" autocomplete="current-password" onkeydown="if(event.key==='Enter') handleLoginSubmit()" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm font-medium transition-all" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <button type="button" id="btnLoginSubmit" onclick="handleLoginSubmit()" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold py-3 rounded-xl shadow-md shadow-indigo-200 transition-all text-sm">
+                    Masuk ke Aplikasi
+                </button>
+
+                <div id="serverConfigBar" class="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                    <span id="serverStatusText" class="text-slate-400 font-medium">Server: Belum diatur</span>
+                    <button type="button" onclick="openGasUrlSettingModal()" class="text-indigo-600 hover:underline font-bold">
+                        Atur URL Server GAS
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 2. HALAMAN UTAMA APLIKASI ==================== -->
+    <div id="appScreen" class="hide min-h-screen flex flex-col md:flex-row">
+
+        <!-- SIDEBAR DESKTOP -->
+        <aside class="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-slate-200/80 z-30">
+            <div class="p-6 border-b border-slate-100 flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-xl shadow-md shadow-indigo-200">
+                    <i class="ph-fill ph-wallet"></i>
+                </div>
+                <div>
+                    <h2 class="font-extrabold text-slate-900 text-base leading-tight">Petty Cash Pro</h2>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">Dual-Mode PWA</span>
+                </div>
+            </div>
+
+            <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto">
+                <button type="button" data-nav="dashboard" onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <i class="ph ph-house text-lg"></i> Beranda &amp; Mutasi
+                </button>
+
+                <button type="button" data-nav="input" onclick="switchTab('input')" class="input-nota-nav nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <i class="ph ph-receipt text-lg"></i> Input Nota Baru
+                </button>
+
+                <button type="button" data-nav="topup-driver" onclick="switchTab('topup-driver')" class="driver-only nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <span class="flex items-center gap-3"><i class="ph ph-hand-coins text-lg"></i> UM Masuk</span>
+                    <span id="navBadgeTopupDesktop" class="hide bg-rose-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">0</span>
+                </button>
+
+                <button type="button" data-nav="approval" onclick="switchTab('approval')" class="admin-only hide nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <span class="flex items-center gap-3"><i class="ph ph-check-circle text-lg"></i> Approval</span>
+                    <span id="navBadgeApprovalDesktop" class="hide bg-rose-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">0</span>
+                </button>
+
+                <button type="button" data-nav="kasinduk" onclick="switchTab('kasinduk')" class="admin-only hide nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <i class="ph ph-bank text-lg"></i> <span id="navKasLabelDesktop">Kas Induk &amp; Top-Up</span>
+                </button>
+
+                <button type="button" data-nav="laporan" onclick="switchTab('laporan')" class="admin-only hide nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <i class="ph ph-file-xls text-lg"></i> Laporan &amp; Excel
+                </button>
+
+                <button type="button" data-nav="pengaturan" onclick="switchTab('pengaturan')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
+                    <i class="ph ph-gear text-lg"></i> Pengaturan &amp; Akun
+                </button>
+            </nav>
+
+            <div class="p-4 border-t border-slate-100">
+                <button type="button" onclick="logoutApp()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors">
+                    <i class="ph ph-sign-out text-base"></i> Keluar Akun
+                </button>
+            </div>
+        </aside>
+
+        <!-- AREA KONTEN UTAMA -->
+        <div class="flex-1 md:pl-64 pb-24 md:pb-10">
+            <div class="max-w-4xl mx-auto p-4 md:p-6 space-y-5">
+
+                <!-- TOP HEADER & STATUS SINKRONISASI -->
+                <header class="bg-white rounded-3xl p-4 md:p-5 shadow-xs border border-slate-100">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center font-extrabold text-lg shrink-0 shadow-sm">
+                                <i class="ph-fill ph-user-circle text-2xl"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <h1 id="headerUserName" class="font-extrabold text-slate-900 text-sm md:text-base truncate">User</h1>
+                                    <span id="headerUserRole" class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 shrink-0">Role</span>
+                                </div>
+                                <p class="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                                    <span id="lastSyncLabel">Sinkronisasi aktif</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Tombol Notifikasi HP & Refresh Kecil -->
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button type="button" id="btnNotifBell" onclick="requestDeviceNotificationPermission()" title="Notifikasi HP" class="relative w-9 h-9 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 flex items-center justify-center transition-colors">
+                                <i class="ph ph-bell text-lg"></i>
+                                <span id="notifBellDot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500"></span>
+                            </button>
+                            <button type="button" id="btnManualRefresh" onclick="manualRefreshData()" title="Refresh Data" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 flex items-center justify-center transition-colors">
+                                <i class="ph ph-arrows-clockwise text-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Switcher Mode (Khusus Admin / Finance) -->
+                    <div id="adminModeSwitcher" class="admin-only hide mt-3.5 bg-slate-100 p-1 rounded-2xl grid grid-cols-2 gap-1">
+                        <button type="button" id="btnModeDistribusi" onclick="switchAppMode('Distribusi')" class="py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-white text-indigo-600 shadow-xs">
+                            <i class="ph-fill ph-truck text-base"></i> Mode Kas Distribusi
+                        </button>
+                        <button type="button" id="btnModeManufaktur" onclick="switchAppMode('Manufaktur')" class="py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-800">
+                            <i class="ph-fill ph-factory text-base"></i> Mode Kas Manufaktur
+                        </button>
+                    </div>
+
+                    <!-- Mode Driver & Operasional (Distribusi) -->
+                    <div id="driverSaldoCard" class="driver-only mt-4 bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 rounded-2xl p-4 text-white flex items-center justify-between shadow-md shadow-indigo-200/60">
+                        <div>
+                            <p class="text-[11px] font-medium text-indigo-100">Sisa Saldo Uang Muka (UM) Anda</p>
+                            <p id="headerSaldoDriver" class="text-2xl md:text-3xl font-extrabold tracking-tight mt-0.5">Rp 0</p>
+                        </div>
+                        <button type="button" onclick="switchTab('input')" class="bg-white/20 hover:bg-white/30 backdrop-blur-xs text-white text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all">
+                            <i class="ph ph-plus-circle text-base"></i> Input Nota
+                        </button>
+                    </div>
+
+                    <!-- Mode Staf Manufaktur (Direct Pool Pabrik) -->
+                    <div id="mfgUserSaldoCard" class="mfg-only hide mt-4 bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 rounded-2xl p-4 text-white flex items-center justify-between shadow-md shadow-teal-200/60">
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-white/20 text-white">Kas Manufaktur</span>
+                            </div>
+                            <p class="text-[11px] font-medium text-teal-100 mt-1">Sisa Saldo Kas Pabrik Tersedia</p>
+                            <p id="headerSaldoMfgUser" class="text-2xl md:text-3xl font-extrabold tracking-tight mt-0.5">Rp 0</p>
+                        </div>
+                        <button type="button" onclick="switchTab('input')" class="bg-white/20 hover:bg-white/30 backdrop-blur-xs text-white text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shrink-0">
+                            <i class="ph ph-plus-circle text-base"></i> Input Nota Pabrik
+                        </button>
+                    </div>
+
+                    <!-- Mode Admin: Distribusi -->
+                    <div id="adminSaldoGrid" class="admin-dist-only hide mt-4 grid grid-cols-2 gap-3">
+                        <div class="bg-slate-900 rounded-2xl p-3.5 md:p-4 text-white cursor-pointer hover:bg-slate-800 transition-colors" onclick="switchTab('kasinduk')">
+                            <div class="flex justify-between items-center">
+                                <p class="text-[11px] text-slate-400 font-semibold">Saldo Kas Distribusi</p>
+                                <i class="ph ph-bank text-emerald-400 text-base"></i>
+                            </div>
+                            <p id="headerSaldoKasInduk" class="text-lg md:text-2xl font-extrabold text-emerald-400 mt-1 truncate">Rp 0</p>
+                        </div>
+                        <div class="bg-indigo-50/80 border border-indigo-100 rounded-2xl p-3.5 md:p-4 text-slate-800 cursor-pointer hover:bg-indigo-100/60 transition-colors" onclick="switchTab('kasinduk')">
+                            <div class="flex justify-between items-center">
+                                <p class="text-[11px] text-indigo-600 font-semibold">Total UM Driver &amp; Ops</p>
+                                <i class="ph ph-users-three text-indigo-500 text-base"></i>
+                            </div>
+                            <p id="headerTotalDriver" class="text-lg md:text-2xl font-extrabold text-indigo-900 mt-1 truncate">Rp 0</p>
+                        </div>
+                    </div>
+
+                    <!-- Mode Admin: Manufaktur -->
+                    <div id="adminMfgSaldoGrid" class="admin-mfg-only hide mt-4 grid grid-cols-2 gap-3">
+                        <div class="bg-gradient-to-r from-teal-900 to-emerald-950 rounded-2xl p-3.5 md:p-4 text-white cursor-pointer hover:opacity-95 transition-opacity" onclick="switchTab('kasinduk')">
+                            <div class="flex justify-between items-center">
+                                <p class="text-[11px] text-teal-200 font-semibold">Saldo Kas Manufaktur</p>
+                                <i class="ph-fill ph-factory text-emerald-400 text-base"></i>
+                            </div>
+                            <p id="headerSaldoKasManufaktur" class="text-lg md:text-2xl font-extrabold text-emerald-400 mt-1 truncate">Rp 0</p>
+                        </div>
+                        <div class="bg-teal-50/90 border border-teal-100 rounded-2xl p-3.5 md:p-4 text-slate-800 cursor-pointer hover:bg-teal-100/60 transition-colors" onclick="switchTab('input')">
+                            <div class="flex justify-between items-center">
+                                <p class="text-[11px] text-teal-700 font-semibold">Belanja Pabrik (Approved)</p>
+                                <i class="ph ph-receipt text-teal-600 text-base"></i>
+                            </div>
+                            <p id="headerTotalMfgExpense" class="text-lg md:text-2xl font-extrabold text-teal-950 mt-1 truncate">Rp 0</p>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- ==================== TAB 1: BERANDA / RIWAYAT TRANSAKSI ==================== -->
+                <section id="tab-dashboard" class="tab-section space-y-4">
+                    <div class="bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <h3 id="historyTitle" class="font-extrabold text-slate-900 text-base">Catatan Transaksi</h3>
+                                <p id="historySubtitle" class="text-xs text-slate-500">Riwayat pengajuan nota &amp; status persetujuan</p>
+                            </div>
+                            <button type="button" onclick="shortcutToMasterKeterangan()" class="admin-only hide inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition-colors">
+                                <i class="ph-fill ph-list-checks text-sm"></i> Kelola Pilihan Keterangan
+                            </button>
+                        </div>
+
+                        <!-- Filter Bar -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            <div class="admin-only hide">
+                                <select id="adminHomeDriverFilter" onchange="renderDashboardUI()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50 outline-none focus:border-indigo-500">
+                                    <option value="ALL">Semua Kas Driver &amp; Operasional</option>
+                                </select>
+                            </div>
+                            <div>
+                                <select id="homeStatusFilter" onchange="renderDashboardUI()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50 outline-none focus:border-indigo-500">
+                                    <option value="ALL">Semua Status</option>
+                                    <option value="Pending">Menunggu Approval</option>
+                                    <option value="Approved">Disetujui (Approved)</option>
+                                    <option value="Rejected">Ditolak (Rejected)</option>
+                                </select>
+                            </div>
+                            <div class="relative">
+                                <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                                <input type="text" id="homeSearchInput" oninput="renderDashboardUI()" placeholder="Cari keterangan / ID..." class="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daftar Riwayat Pengajuan Edit/Hapus milik Staf Lapangan -->
+                    <div id="driverMyRequestsCard" class="field-user-only hide bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                                <i class="ph ph-clock-counter-clockwise text-indigo-600 text-base"></i> Status Pengajuan Edit / Hapus Anda
+                            </h4>
+                        </div>
+                        <div id="listDriverRequestsStatus" class="space-y-2"></div>
+                    </div>
+
+                    <!-- List Transaksi Nota -->
+                    <div id="listTransaksi" class="space-y-3"></div>
+                </section>
+
+                <!-- ==================== TAB 2: INPUT NOTA ==================== -->
+                <section id="tab-input" class="tab-section hide">
+                    <div class="bg-white p-5 md:p-6 rounded-3xl shadow-xs border border-slate-100 space-y-5">
+                        <div>
+                            <h3 id="inputNotaFormTitle" class="font-extrabold text-lg text-slate-900 flex items-center gap-2">
+                                <i class="ph-fill ph-receipt text-indigo-600 text-xl"></i> Input Nota Pengeluaran
+                            </h3>
+                            <p id="inputNotaFormSubtitle" class="text-xs text-slate-500 mt-0.5">Pilih keterangan cepat atau tulis manual, lalu lampirkan foto bukti nota</p>
+                        </div>
+
+                        <div id="formInputNota" class="space-y-4">
+                            <!-- Dropdown Pilihan Keterangan dari Admin -->
+                            <div>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Pilihan Keterangan / Kategori</label>
+                                    <button type="button" onclick="shortcutToMasterKeterangan()" class="admin-only hide text-[11px] font-bold text-indigo-600 hover:underline">
+                                        + Kelola Daftar Pilihan
+                                    </button>
+                                </div>
+                                <select id="inputKategoriSelect" onchange="handleKategoriChange()" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-semibold text-slate-800">
+                                    <option value="__MANUAL__">-- Ketik Kategori / Keterangan Manual --</option>
+                                </select>
+                            </div>
+
+                            <!-- Input Manual Kategori jika memilih manual -->
+                            <div id="inputKategoriManualBox">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Judul Kategori Manual</label>
+                                <input type="text" id="inputKategoriManual" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Contoh: Tambal Ban / Parkir Gudang">
+                            </div>
+
+                            <!-- Detail Keterangan Tambahan (Opsional/Manual) -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Detail Keterangan Tambahan (Opsional)</label>
+                                <input type="text" id="inputKeteranganManual" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Contoh: Plat B 1234 XYZ, SPBU Pertamina KM 19">
+                            </div>
+
+                            <!-- Nominal -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Nominal Pengeluaran (Rp)</label>
+                                <input type="number" id="inputNominal" inputmode="numeric" min="1" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-base font-extrabold text-slate-900" placeholder="0">
+                            </div>
+
+                            <!-- Upload / Kamera Foto Nota -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Foto Bukti Nota / Struk</label>
+                                <label for="inputFotoNota" class="flex flex-col items-center justify-center w-full p-5 border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl bg-slate-50/70 hover:bg-indigo-50/30 cursor-pointer transition-all">
+                                    <i class="ph ph-camera text-3xl text-indigo-600 mb-1.5"></i>
+                                    <span class="text-xs font-bold text-slate-700">Tap untuk Ambil Foto / Pilih Galeri</span>
+                                    <span class="text-[11px] text-slate-400 mt-0.5">Otomatis dikompresi agar upload cepat</span>
+                                    <input type="file" id="inputFotoNota" accept="image/*" capture="environment" onchange="handleNotaFileSelect(this)" class="hidden">
+                                </label>
+
+                                <!-- Preview Foto Nota -->
+                                <div id="previewNotaBox" class="hide mt-3 relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900">
+                                    <img id="previewNotaImg" src="" alt="Preview Nota" class="w-full max-h-64 object-contain mx-auto">
+                                    <button type="button" onclick="clearNotaPreview()" class="absolute top-2.5 right-2.5 bg-rose-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1">
+                                        <i class="ph ph-trash"></i> Hapus Foto
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button type="button" id="btnSubmitNota" onclick="submitNotaForm()" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-indigo-200 transition-all text-sm flex items-center justify-center gap-2">
+                                <i class="ph ph-paper-plane-tilt text-lg"></i> Kirim Laporan Nota
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==================== TAB 3: RIWAYAT & KONFIRMASI UM MASUK (DRIVER / OPS) ==================== -->
+                <section id="tab-topup-driver" class="tab-section hide space-y-4">
+                    <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100">
+                        <h3 class="font-extrabold text-base text-slate-900">Konfirmasi &amp; Riwayat Saldo UM Masuk</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Konfirmasi Terima atau Tolak jika ada dana top-up dari Admin</p>
+                    </div>
+                    <div id="listDriverTopups" class="space-y-3"></div>
+                </section>
+
+                <!-- ==================== TAB 4: APPROVAL ADMIN ==================== -->
+                <section id="tab-approval" class="tab-section hide space-y-5">
+                    <!-- Antrean Nota Baru -->
+                    <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-extrabold text-base text-slate-900">Antrean Approval Nota Baru</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Periksa bukti nota sebelum menyetujui pemotongan saldo</p>
+                        </div>
+                        <span id="approvalPendingTrxCount" class="bg-amber-100 text-amber-800 text-xs font-extrabold px-3 py-1 rounded-full">0 Pending</span>
+                    </div>
+                    <div id="listPendingTrx" class="space-y-3"></div>
+
+                    <!-- Antrean Request Perubahan / Hapus dari Staf Lapangan -->
+                    <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-extrabold text-base text-slate-900">Pengajuan Edit / Hapus Nota</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Permintaan koreksi atau pembatalan salah input dari tim lapangan</p>
+                        </div>
+                        <span id="approvalPendingReqCount" class="bg-indigo-100 text-indigo-800 text-xs font-extrabold px-3 py-1 rounded-full">0 Request</span>
+                    </div>
+                    <div id="listPendingReq" class="space-y-3"></div>
+                </section>
+
+                <!-- ==================== TAB 5: KAS INDUK / KAS MANUFAKTUR (ADMIN) ==================== -->
+                <section id="tab-kasinduk" class="tab-section hide space-y-5">
+                    <!-- PANEL KAS INDUK DISTRIBUSI -->
+                    <div id="kasDistribusiPanel" class="space-y-5">
+                        <!-- Kartu Utama Kas Induk Distribusi -->
+                        <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-3xl p-5 md:p-6 text-white shadow-xl">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Saldo Kas Induk Distribusi</p>
+                                    <p id="kasIndukMainBalance" class="text-3xl md:text-4xl font-extrabold text-emerald-400 mt-1">Rp 0</p>
+                                    <p id="kasIndukWarningEmpty" class="hide text-xs text-rose-300 font-semibold mt-1.5 flex items-center gap-1">
+                                        <i class="ph-fill ph-warning-circle"></i> Saldo Kas Induk kosong. Isi saldo Kas Induk terlebih dahulu sebelum transfer UM.
+                                    </p>
+                                </div>
+                                <div class="flex gap-2.5">
+                                    <button type="button" onclick="openTopupKasIndukModal()" class="flex-1 md:flex-none bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs px-4 py-3 rounded-xl shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-1.5 transition-all">
+                                        <i class="ph ph-plus-circle text-base"></i> Top-Up Kas Induk
+                                    </button>
+                                    <button type="button" id="btnOpenTopupDriver" onclick="openTopupDriverModal('')" class="flex-1 md:flex-none bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs px-4 py-3 rounded-xl shadow-lg shadow-indigo-950/30 flex items-center justify-center gap-1.5 transition-all">
+                                        <i class="ph ph-paper-plane-right text-base"></i> Transfer Saldo UM
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Visibilitas Saldo Masing-Masing Driver & Operasional -->
+                        <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100">
+                            <div class="flex justify-between items-center mb-4">
+                                <div>
+                                    <h4 class="font-bold text-slate-800 text-sm md:text-base">Visibilitas Saldo Kas Driver &amp; Operasional</h4>
+                                    <p class="text-xs text-slate-500">Pantau sisa Uang Muka (UM) di tangan Driver &amp; tim Operasional</p>
+                                </div>
+                            </div>
+                            <div id="gridDriverBalances" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+                        </div>
+
+                        <!-- Riwayat Mutasi Kas Induk Distribusi -->
+                        <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-3">
+                            <h4 class="font-bold text-slate-800 text-sm md:text-base">Mutasi Buku Besar Kas Distribusi</h4>
+                            <div id="listKasIndukHistory" class="space-y-2.5"></div>
+                        </div>
+                    </div>
+
+                    <!-- PANEL KAS MANUFAKTUR (DIRECT POOL - TANPA TRANSFER KE USER) -->
+                    <div id="kasManufakturPanel" class="hide space-y-5">
+                        <div class="bg-gradient-to-br from-teal-900 via-emerald-900 to-slate-900 rounded-3xl p-5 md:p-6 text-white shadow-xl">
+                            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div>
+                                    <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Direct Pool Pabrik</span>
+                                    <p class="text-xs font-semibold text-teal-100 uppercase tracking-wider mt-2">Saldo Kas Manufaktur Tersedia</p>
+                                    <p id="kasManufakturMainBalance" class="text-3xl md:text-4xl font-extrabold text-emerald-400 mt-1">Rp 0</p>
+                                    <p class="text-[11px] text-teal-200/80 mt-1.5">Saldo langsung terpotong otomatis saat nota Manufaktur di-Approve Finance/Admin.</p>
+                                </div>
+                                <div class="flex gap-2.5">
+                                    <button type="button" onclick="openTopupKasManufakturModal()" class="flex-1 md:flex-none bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs px-4 py-3 rounded-xl shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-1.5 transition-all">
+                                        <i class="ph ph-plus-circle text-base"></i> Top-Up Kas Manufaktur
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-3">
+                            <h4 class="font-bold text-slate-800 text-sm md:text-base">Mutasi Buku Besar Kas Manufaktur</h4>
+                            <div id="listKasManufakturHistory" class="space-y-2.5"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==================== TAB 6: LAPORAN & EXCEL (ADMIN) ==================== -->
+                <section id="tab-laporan" class="tab-section hide space-y-4">
+                    <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 id="laporanMainTitle" class="font-extrabold text-base text-slate-900">Laporan Transaksi Petty Cash</h3>
+                            <p id="laporanMainSubtitle" class="text-xs text-slate-500">Filter per User, status, tanggal, dan unduh Excel (.xlsx)</p>
+                        </div>
+                        <button type="button" onclick="exportLaporanExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-3 rounded-2xl shadow-md shadow-emerald-200 flex items-center justify-center gap-2 transition-all shrink-0">
+                            <i class="ph-fill ph-microsoft-excel-logo text-lg"></i> Download Excel (.xlsx)
+                        </button>
+                    </div>
+
+                    <!-- Panel Filter Laporan -->
+                    <div class="bg-white p-4 md:p-5 rounded-3xl shadow-xs border border-slate-100 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                            <label id="repFilterDriverLabel" class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Pilih Driver / Ops</label>
+                            <select id="repFilterDriver" onchange="renderLaporan()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="ALL">Semua User</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Status Approval</label>
+                            <select id="repFilterStatus" onchange="renderLaporan()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="ALL">Semua Status</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Dari Tanggal</label>
+                            <input type="date" id="repFilterStart" onchange="renderLaporan()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Sampai Tanggal</label>
+                            <input type="date" id="repFilterEnd" onchange="renderLaporan()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                    </div>
+
+                    <!-- Ringkasan Nominal Laporan -->
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-white p-3.5 rounded-2xl border border-slate-100">
+                            <p class="text-[11px] text-slate-400 font-bold">Total Item</p>
+                            <p id="repTotalCount" class="text-base md:text-lg font-extrabold text-slate-800 mt-0.5">0</p>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-2xl border border-slate-100">
+                            <p class="text-[11px] text-emerald-600 font-bold">Total Approved</p>
+                            <p id="repTotalApproved" class="text-sm md:text-lg font-extrabold text-emerald-600 mt-0.5 truncate">Rp 0</p>
+                        </div>
+                        <div class="bg-white p-3.5 rounded-2xl border border-slate-100">
+                            <p class="text-[11px] text-amber-600 font-bold">Total Pending</p>
+                            <p id="repTotalPending" class="text-sm md:text-lg font-extrabold text-amber-600 mt-0.5 truncate">Rp 0</p>
+                        </div>
+                    </div>
+
+                    <div id="listLaporanPreview" class="space-y-2.5"></div>
+                </section>
+
+                <!-- ==================== TAB 7: PENGATURAN & KELOLA AKUN ==================== -->
+                <section id="tab-pengaturan" class="tab-section hide space-y-5">
+                    <!-- Kartu Profil & Install PWA -->
+                    <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl font-bold">
+                                <i class="ph-fill ph-identification-card"></i>
+                            </div>
+                            <div>
+                                <h3 id="profileCardName" class="font-extrabold text-base text-slate-900">Nama User</h3>
+                                <p class="text-xs text-slate-500"><span id="profileCardUsername">@username</span> &bull; <span id="profileCardId">USR-000</span></p>
+                                <span id="profileCardRole" class="inline-block mt-1 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700">Role</span>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" id="btnInstallPwa" onclick="triggerInstallPwa()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-indigo-200 flex items-center gap-1.5 transition-all">
+                                <i class="ph ph-download-simple text-base"></i> Install App (PWA)
+                            </button>
+                            <button type="button" id="btnConfigGasServer" onclick="openGasUrlConfigModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors">
+                                <i class="ph ph-plugs-connected text-base"></i> Server API
+                            </button>
+                            <button type="button" onclick="logoutApp()" class="md:hidden bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors">
+                                <i class="ph ph-sign-out text-base"></i> Keluar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ADMIN ONLY: Master Pilihan Keterangan Cepat -->
+                    <div class="admin-only hide bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-4">
+                        <div>
+                            <h3 id="masterKatTitle" class="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                                <i class="ph-fill ph-list-checks text-indigo-600 text-xl"></i> Master Pilihan Keterangan Cepat
+                            </h3>
+                            <p id="masterKatSubtitle" class="text-xs text-slate-500 mt-0.5">Tambahkan daftar pilihan agar tim lapangan tinggal pilih saat input nota</p>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <input type="text" id="newKategoriInput" onkeydown="if(event.key==='Enter') submitAddKategori()" class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Contoh: Bensin Pertalite / Sparepart Mesin / Solar Genset">
+                            <button type="button" onclick="submitAddKategori()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shrink-0">
+                                + Tambah
+                            </button>
+                        </div>
+
+                        <div id="listMasterKategori" class="space-y-2"></div>
+                    </div>
+
+                    <!-- ADMIN ONLY: Tambah Akun User Baru -->
+                    <div class="admin-only hide bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-4">
+                        <div>
+                            <h3 class="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                                <i class="ph-fill ph-user-plus text-indigo-600 text-xl"></i> Tambah Akun User Baru
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Buat akun untuk Driver, Operasional, Manufaktur, atau Admin baru langsung dari aplikasi</p>
+                        </div>
+
+                        <div id="formAddUser" class="space-y-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">Nama Lengkap</label>
+                                    <input type="text" id="addNamaLengkap" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Contoh: Budi Santoso">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">Role / Hak Akses</label>
+                                    <select id="addRole" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-medium" onchange="document.getElementById('addSaldoContainer').style.display = (this.value === 'Driver' || this.value === 'Operasional') ? 'block' : 'none'">
+                                        <option value="Driver">Driver (Kas Distribusi)</option>
+                                        <option value="Operasional">Operasional (Kas Distribusi)</option>
+                                        <option value="Manufaktur">Manufaktur (Kas Pabrik - Direct)</option>
+                                        <option value="Admin">Admin / Finance</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">Username Login</label>
+                                    <input type="text" id="addUsername" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Contoh: budi_pabrik">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">Password Login</label>
+                                    <input type="text" id="addPassword" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Minimal 4 karakter">
+                                </div>
+                            </div>
+
+                            <div id="addSaldoContainer">
+                                <label class="block text-xs font-bold text-slate-500 mb-1">Saldo Awal Uang Muka Distribusi (Rp)</label>
+                                <input type="number" id="addSaldoUm" value="0" min="0" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold">
+                            </div>
+
+                            <button type="button" onclick="submitAddUser()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all">
+                                <i class="ph ph-check-circle text-lg"></i> Simpan Akun User Baru
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ADMIN ONLY: Daftar Akun Terdaftar -->
+                    <div class="admin-only hide bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-3">
+                        <h3 class="font-extrabold text-base text-slate-900">Daftar Akun Terdaftar</h3>
+                        <div id="listAllUsers" class="space-y-2.5"></div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+
+        <!-- BOTTOM NAVIGATION BAR (MOBILE) -->
+        <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200/80 z-40 px-2 py-1.5 flex justify-around items-center">
+            <button type="button" data-nav="dashboard" onclick="switchTab('dashboard')" class="nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+                <i class="ph ph-house text-xl mb-0.5"></i> Beranda
+            </button>
+
+            <button type="button" data-nav="input" onclick="switchTab('input')" class="input-nota-nav nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+                <i class="ph ph-plus-circle text-xl mb-0.5"></i> Input Nota
+            </button>
+
+            <button type="button" data-nav="topup-driver" onclick="switchTab('topup-driver')" class="driver-only nav-btn relative flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+                <i class="ph ph-hand-coins text-xl mb-0.5"></i> UM Masuk
+                <span id="navBadgeTopupMobile" class="hide absolute top-1 right-4 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 rounded-full">0</span>
+            </button>
+
+            <button type="button" data-nav="approval" onclick="switchTab('approval')" class="admin-only hide nav-btn relative flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+                <i class="ph ph-check-circle text-xl mb-0.5"></i> Approval
+                <span id="navBadgeApprovalMobile" class="hide absolute top-1 right-3 bg-rose-500 text-white text-[9px] font-extrabold px-1.5 rounded-full">0</span>
+            </button>
+
+            <button type="button" data-nav="kasinduk" onclick="switchTab('kasinduk')" class="admin-only hide nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+                <i class="ph ph-bank text-xl mb-0.5"></i> <span id="navKasLabelMobile">Kas Induk</span>
+            </button>
+
+            <button type="button" data-nav="laporan" onclick="switchTab('laporan')" class="admin-only hide nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+                <i class="ph ph-file-xls text-xl mb-0.5"></i> Laporan
+            </button>
+
+            <button type="button" data-nav="pengaturan" onclick="switchTab('pengaturan')" class="nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold text-slate-500">
+                <i class="ph ph-gear text-xl mb-0.5"></i> Akun
+            </button>
+        </nav>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // 0. KONFIGURASI URL SERVER GOOGLE APPS SCRIPT (WAJIB UNTUK GITHUB PAGES)
+        // =========================================================================
+        // Tempel URL Web App (/exec) dari Google Apps Script Anda di dalam tanda kutip di bawah:
+        var DEFAULT_GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyuvDbcwiGwoyiF4yrrwdRW-Dwxif8umT1K2qmU9BEJ3L2yjYjkHPUAb_QUDsOy0n8ZWA/exec';
+
+        function getGasApiUrl() {
+            if (DEFAULT_GAS_API_URL && String(DEFAULT_GAS_API_URL).trim() !== '') {
+                return String(DEFAULT_GAS_API_URL).trim();
+            }
+            try {
+                return String(localStorage.getItem('pettycash_gas_api_url') || '').trim();
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function updateServerStatusIndicator() {
+            var bar = document.getElementById('serverConfigBar');
+            var txt = document.getElementById('serverStatusText');
+            if (!bar || !txt) return;
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                bar.classList.add('hide');
+                return;
+            }
+            var url = getGasApiUrl();
+            if (url) {
+                txt.innerHTML = '<span class="text-emerald-600 font-bold">Server GAS Terhubung</span>';
+            } else {
+                txt.innerHTML = '<span class="text-amber-600 font-bold">URL Server GAS belum diisi</span>';
+            }
+        }
+
+        function openGasUrlSettingModal() {
+            var currentUrl = getGasApiUrl();
+            Swal.fire({
+                title: 'URL Server Google Apps Script',
+                html: '<div class="text-left space-y-2 text-xs mt-2">' +
+                    '<p class="text-slate-500">Masukkan URL Web App Google Apps Script yang berakhiran <b>/exec</b> (pastikan akses deploy diset ke <b>Anyone / Siapa saja</b>):</p>' +
+                    '<input type="url" id="swalGasUrlInput" value="' + escapeHtml(currentUrl) + '" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-mono">' +
+                '</div>',
+                showCancelButton: true,
+                confirmButtonColor: '#4f46e5',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Simpan URL',
+                cancelButtonText: 'Batal',
+                customClass: { popup: 'rounded-3xl' },
+                preConfirm: function() {
+                    var val = String(document.getElementById('swalGasUrlInput').value || '').trim();
+                    if (!val || val.indexOf('https://script.google.com/') !== 0) {
+                        Swal.showValidationMessage('Masukkan URL Google Apps Script yang valid (https://script.google.com/.../exec).');
+                        return false;
+                    }
+                    return val;
+                }
+            }).then(function(res) {
+                if (!res.isConfirmed) return;
+                try { localStorage.setItem('pettycash_gas_api_url', res.value); } catch (e) {}
+                updateServerStatusIndicator();
+                showToast('URL Server GAS berhasil disimpan!', 'success');
+            });
+        }
+
+        // =========================================================================
+        // 1. STATE GLOBAL APLIKASI
+        // =========================================================================
+// ... existing code ... -->
+        function fetchAPI(payload) {
+            if (currentUser && !payload.actor_role) {
+                payload.actor_role = currentUser.role;
+            }
+            return new Promise(function(resolve, reject) {
+                // Jika berjalan langsung di dalam Google Apps Script
+                if (typeof google !== 'undefined' && google.script && google.script.run) {
+                    google.script.run
+                        .withSuccessHandler(function(res) {
+                            if (res && res.status === 'success') {
+                                resolve(res.data);
+                            } else {
+                                reject(new Error((res && res.message) || 'Terjadi kesalahan pada server.'));
+                            }
+                        })
+                        .withFailureHandler(function(err) {
+                            reject(new Error((err && err.message) || 'Gagal terhubung ke server Google Apps Script.'));
+                        })
+                        .apiHandler(payload);
+                    return;
+                }
+
+                // Jika berjalan sebagai Standalone PWA (GitHub Pages / Vercel / Netlify)
+                var apiUrl = getGasApiUrl();
+                if (!apiUrl) {
+                    reject(new Error('URL Server Google Apps Script (/exec) belum diatur. Klik "Atur URL Server GAS" di bawah tombol Login atau isi DEFAULT_GAS_API_URL di index.html.'));
+                    return;
+                }
+
+                fetch(apiUrl, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8'
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('HTTP Error ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function(res) {
+                    if (res && res.status === 'success') {
+                        resolve(res.data);
+                    } else {
+                        reject(new Error((res && res.message) || 'Terjadi kesalahan pada server.'));
+                    }
+                })
+                .catch(function(err) {
+                    reject(new Error('Gagal terhubung ke server GAS: ' + ((err && err.message) || 'Periksa koneksi internet & pastikan Deploy GAS diset ke Anyone.')));
+                });
+            });
+        }
+// ... existing code ... -->
+        // =========================================================================
+        // 4. INSTALASI PWA (OTOMATIS SEMBUNYI JIKA SUDAH TERINSTALL)
+        // =========================================================================
+        function setupDynamicPwa() {
+            try {
+                var pageUrl = window.location.href.split('#')[0];
+                var manifestObj = {
+                    name: 'Petty Cash Pro',
+                    short_name: 'PettyCash',
+                    start_url: pageUrl,
+                    display: 'standalone',
+                    background_color: '#f8fafc',
+                    theme_color: '#4f46e5',
+                    icons: [{
+                        src: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="28" fill="#4f46e5"/><text x="64" y="82" font-size="64" text-anchor="middle" fill="#ffffff" font-family="sans-serif">Rp</text></svg>'),
+                        sizes: '128x128',
+                        type: 'image/svg+xml'
+                    }]
+                };
+                var blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
+                var manifestUrl = URL.createObjectURL(blob);
+                var linkEl = document.createElement('link');
+                linkEl.rel = 'manifest';
+                linkEl.href = manifestUrl;
+                document.head.appendChild(linkEl);
+            } catch (e) {}
+
+            // Daftarkan Service Worker sw.js jika di-hosting di GitHub Pages / domain sendiri
+            if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+                navigator.serviceWorker.register('./sw.js').catch(function() {});
+            }
+        }
+// ... existing code ... -->
+        setupDynamicPwa();
+        updateServerStatusIndicator();
+        checkInstallVisibility();
+        restoreSessionOnBoot();
+    </script>
+</body>
+</html>
