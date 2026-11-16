@@ -336,10 +336,20 @@
                                 <input type="text" id="inputKeteranganManual" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Contoh: Plat B 1234 XYZ, SPBU Pertamina KM 19">
                             </div>
 
-                            <!-- Nominal -->
-                            <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Nominal Pengeluaran (Rp)</label>
-                                <input type="number" id="inputNominal" inputmode="numeric" min="1" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-base font-extrabold text-slate-900" placeholder="0">
+                            <!-- Tanggal Nota & Nominal Pengeluaran -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Tanggal Nota / Transaksi</label>
+                                    <input type="date" id="inputTanggalNota" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-bold text-slate-800">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Nominal Pengeluaran (Rp)</label>
+                                    <div class="relative">
+                                        <span class="absolute left-3.5 top-3 text-sm font-extrabold text-slate-400 select-none">Rp</span>
+                                        <input type="text" id="inputNominal" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" class="w-full pl-11 pr-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-base font-extrabold text-slate-900" placeholder="0">
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Upload / Kamera Foto Nota -->
@@ -851,6 +861,53 @@
             return neg + 'Rp ' + absVal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         }
 
+        function getTodayLocalIso() {
+            var now = new Date();
+            var y = now.getFullYear();
+            var m = String(now.getMonth() + 1).padStart(2, '0');
+            var d = String(now.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + d;
+        }
+
+        function setDefaultInputTanggalNota() {
+            var el = document.getElementById('inputTanggalNota');
+            if (el) {
+                el.value = getTodayLocalIso();
+            }
+        }
+
+        function formatRibuanInput(el) {
+            if (!el) return;
+            var oldVal = String(el.value || '');
+            var selStart = el.selectionStart || oldVal.length;
+            var digitsBeforeCursor = oldVal.slice(0, selStart).replace(/\D/g, '').length;
+
+            var raw = oldVal.replace(/\D/g, '').replace(/^0+/, '');
+            if (!raw) {
+                el.value = '';
+                return;
+            }
+            var formatted = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            el.value = formatted;
+
+            if (typeof el.setSelectionRange === 'function') {
+                var newPos = 0;
+                var counted = 0;
+                while (newPos < formatted.length && counted < digitsBeforeCursor) {
+                    if (/\d/.test(formatted.charAt(newPos))) {
+                        counted++;
+                    }
+                    newPos++;
+                }
+                el.setSelectionRange(newPos, newPos);
+            }
+        }
+
+        function parseRibuanValue(val) {
+            var digits = String(val || '').replace(/\D/g, '');
+            return parseFloat(digits) || 0;
+        }
+
         function escapeHtml(str) {
             if (str === null || str === undefined) return '';
             return String(str)
@@ -1351,6 +1408,7 @@
             }
 
             if (tabName === 'input') {
+                setDefaultInputTanggalNota();
                 populateInputKategoriDropdown();
             } else if (tabName === 'laporan') {
                 renderLaporan();
@@ -1742,7 +1800,8 @@
                 ? String(document.getElementById('inputKategoriManual').value || '').trim()
                 : String(sel || '').trim();
             var ketManual = String(document.getElementById('inputKeteranganManual').value || '').trim();
-            var nominal = parseFloat(document.getElementById('inputNominal').value) || 0;
+            var tanggalNota = String(document.getElementById('inputTanggalNota').value || '').trim() || getTodayLocalIso();
+            var nominal = parseRibuanValue(document.getElementById('inputNominal').value);
 
             if (!kategori) {
                 Swal.fire({ icon: 'warning', title: 'Kategori Kosong', text: 'Pilih atau isi judul kategori pengeluaran terlebih dahulu.', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
@@ -1758,6 +1817,7 @@
                 action: 'submit_trx',
                 userId: currentUser.id_user,
                 divisi: activeMode,
+                tanggal_nota: tanggalNota,
                 kategori: kategori,
                 keterangan_manual: ketManual,
                 nominal: nominal,
@@ -1768,6 +1828,7 @@
                 document.getElementById('inputKategoriManual').value = '';
                 document.getElementById('inputKeteranganManual').value = '';
                 document.getElementById('inputNominal').value = '';
+                setDefaultInputTanggalNota();
                 clearNotaPreview();
                 return loadDashboardData(false).then(function() { return res; });
             })
@@ -2346,7 +2407,7 @@
             var ws = XLSX.utils.json_to_sheet(rows);
             var wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Laporan_' + activeMode);
-            XLSX.writeFile(wb, 'Laporan_PettyCash_' + activeMode + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+            XLSX.writeFile(wb, 'Laporan_PettyCash_' + activeMode + '_' + getTodayLocalIso() + '.xlsx');
             showToast('File Excel berhasil diunduh!', 'success');
         }
 
@@ -2765,6 +2826,7 @@
         setupDynamicPwa();
         updateServerStatusIndicator();
         checkInstallVisibility();
+        setDefaultInputTanggalNota();
         restoreSessionOnBoot();
     </script>
 </body>
