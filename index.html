@@ -619,7 +619,10 @@
 
                             <div id="addSaldoContainer">
                                 <label class="block text-xs font-bold text-slate-500 mb-1">Saldo Awal Uang Muka Distribusi (Rp)</label>
-                                <input type="number" id="addSaldoUm" value="0" min="0" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold">
+                                <div class="relative">
+                                    <span class="absolute left-3.5 top-2.5 text-xs font-extrabold text-slate-400 select-none">Rp</span>
+                                    <input type="text" id="addSaldoUm" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" value="" placeholder="0" class="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold">
+                                </div>
                             </div>
 
                             <button type="button" onclick="submitAddUser()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all">
@@ -874,6 +877,12 @@
             if (el) {
                 el.value = getTodayLocalIso();
             }
+        }
+
+        function formatRibuanNumber(num) {
+            var n = Math.round(parseFloat(num) || 0);
+            if (n <= 0) return '';
+            return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         }
 
         function formatRibuanInput(el) {
@@ -1239,7 +1248,6 @@
             var mfg = isManufakturUser();
             var fieldDist = isFieldDistribusiUser();
 
-            // Pastikan activeMode selalu sesuai role
             if (!admin) {
                 activeMode = mfg ? 'Manufaktur' : 'Distribusi';
             }
@@ -1367,7 +1375,6 @@
         }
 
         function switchTab(tabName, skipSave) {
-            // Proteksi akses tab berdasarkan role agar role non-admin tidak masuk halaman admin
             if (!isAdminUser() && (tabName === 'approval' || tabName === 'kasinduk' || tabName === 'laporan')) {
                 tabName = 'dashboard';
             }
@@ -1385,7 +1392,6 @@
             var target = document.getElementById('tab-' + tabName);
             if (target) target.classList.remove('hide');
 
-            // Gunakan classList agar class role (admin-only, driver-only, mfg-only, hide) TIDAK terhapus
             var navBtns = document.querySelectorAll('.nav-btn');
             for (var j = 0; j < navBtns.length; j++) {
                 var btn = navBtns[j];
@@ -2167,7 +2173,7 @@
             Swal.fire({
                 title: 'Top-Up Kas Induk Distribusi',
                 html: '<div class="text-left space-y-3 text-xs mt-2">' +
-                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal Masuk (Rp)</label><input type="number" id="swalTopupIndukNom" min="1" placeholder="1000000" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal Masuk (Rp)</label><input type="text" id="swalTopupIndukNom" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" placeholder="1.000.000" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></div>' +
                     '<div><label class="font-bold text-slate-600 block mb-1">Keterangan Sumber Dana</label><input type="text" id="swalTopupIndukKet" placeholder="Contoh: Drop Kas Mingguan dari Pusat" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs"></div>' +
                 '</div>',
                 showCancelButton: true,
@@ -2177,7 +2183,7 @@
                 cancelButtonText: 'Batal',
                 customClass: { popup: 'rounded-3xl' },
                 preConfirm: function() {
-                    var nom = parseFloat(document.getElementById('swalTopupIndukNom').value) || 0;
+                    var nom = parseRibuanValue(document.getElementById('swalTopupIndukNom').value);
                     if (nom <= 0) {
                         Swal.showValidationMessage('Masukkan nominal lebih dari Rp 0');
                         return false;
@@ -2214,7 +2220,7 @@
             Swal.fire({
                 title: 'Top-Up Kas Manufaktur',
                 html: '<div class="text-left space-y-3 text-xs mt-2">' +
-                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal Masuk Kas Pabrik (Rp)</label><input type="number" id="swalTopupMfgNom" min="1" placeholder="2000000" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal Masuk Kas Pabrik (Rp)</label><input type="text" id="swalTopupMfgNom" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" placeholder="2.000.000" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></div>' +
                     '<div><label class="font-bold text-slate-600 block mb-1">Keterangan</label><input type="text" id="swalTopupMfgKet" placeholder="Contoh: Anggaran Operasional Pabrik" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs"></div>' +
                 '</div>',
                 showCancelButton: true,
@@ -2224,7 +2230,7 @@
                 cancelButtonText: 'Batal',
                 customClass: { popup: 'rounded-3xl' },
                 preConfirm: function() {
-                    var nom = parseFloat(document.getElementById('swalTopupMfgNom').value) || 0;
+                    var nom = parseRibuanValue(document.getElementById('swalTopupMfgNom').value);
                     if (nom <= 0) {
                         Swal.showValidationMessage('Masukkan nominal lebih dari Rp 0');
                         return false;
@@ -2274,7 +2280,7 @@
                 title: 'Transfer Saldo UM',
                 html: '<div class="text-left space-y-3 text-xs mt-2">' +
                     '<div><label class="font-bold text-slate-600 block mb-1">Penerima (Driver / Operasional)</label><select id="swalTopupDrvTarget" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-bold bg-white">' + opts + '</select></div>' +
-                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal Transfer (Rp)</label><input type="number" id="swalTopupDrvNom" min="1" placeholder="500000" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal Transfer (Rp)</label><input type="text" id="swalTopupDrvNom" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" placeholder="500.000" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold"></div>' +
                     '<div><label class="font-bold text-slate-600 block mb-1">Catatan (Opsional)</label><input type="text" id="swalTopupDrvKet" placeholder="Contoh: UM Rute Luar Kota" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs"></div>' +
                 '</div>',
                 showCancelButton: true,
@@ -2284,7 +2290,7 @@
                 cancelButtonText: 'Batal',
                 customClass: { popup: 'rounded-3xl' },
                 preConfirm: function() {
-                    var nom = parseFloat(document.getElementById('swalTopupDrvNom').value) || 0;
+                    var nom = parseRibuanValue(document.getElementById('swalTopupDrvNom').value);
                     if (nom <= 0) {
                         Swal.showValidationMessage('Masukkan nominal lebih dari Rp 0');
                         return false;
@@ -2517,7 +2523,7 @@
             var role = document.getElementById('addRole').value;
             var username = String(document.getElementById('addUsername').value || '').trim();
             var password = String(document.getElementById('addPassword').value || '').trim();
-            var saldoUm = parseFloat(document.getElementById('addSaldoUm').value) || 0;
+            var saldoUm = parseRibuanValue(document.getElementById('addSaldoUm').value);
 
             if (!nama || !username || !password) {
                 Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', text: 'Nama lengkap, username, dan password wajib diisi.', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
@@ -2537,7 +2543,7 @@
                 document.getElementById('addNamaLengkap').value = '';
                 document.getElementById('addUsername').value = '';
                 document.getElementById('addPassword').value = '';
-                document.getElementById('addSaldoUm').value = '0';
+                document.getElementById('addSaldoUm').value = '';
                 toggleAddSaldoVisibility();
                 return loadDashboardData(false).then(function() { return res; });
             })
@@ -2571,7 +2577,7 @@
                         '<option value="Manufaktur"' + (target.role === 'Manufaktur' ? ' selected' : '') + '>Manufaktur</option>' +
                         '<option value="Admin"' + (target.role === 'Admin' ? ' selected' : '') + '>Admin</option>' +
                     '</select></div>' +
-                    '<div><label class="font-bold text-slate-600 block mb-1">Saldo UM (Rp)</label><input type="number" id="edUsrSaldo" value="' + (parseFloat(target.saldo_um) || 0) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Saldo UM (Rp)</label><input type="text" id="edUsrSaldo" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" value="' + formatRibuanNumber(target.saldo_um) + '" placeholder="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"></div>' +
                     '<div><label class="font-bold text-slate-600 block mb-1">Status</label><select id="edUsrStatus" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white">' +
                         '<option value="Aktif"' + (target.status === 'Aktif' ? ' selected' : '') + '>Aktif</option>' +
                         '<option value="Nonaktif"' + (target.status === 'Nonaktif' ? ' selected' : '') + '>Nonaktif</option>' +
@@ -2590,7 +2596,7 @@
                         username: String(document.getElementById('edUsrUser').value || '').trim(),
                         password: String(document.getElementById('edUsrPass').value || '').trim(),
                         role: document.getElementById('edUsrRole').value,
-                        saldo_um: parseFloat(document.getElementById('edUsrSaldo').value) || 0,
+                        saldo_um: parseRibuanValue(document.getElementById('edUsrSaldo').value),
                         status: document.getElementById('edUsrStatus').value
                     };
                 }
@@ -2674,7 +2680,7 @@
                 html: '<div class="text-left space-y-2.5 text-xs mt-2">' +
                     '<div><label class="font-bold text-slate-600 block mb-1">Kategori</label><input type="text" id="edTrxKat" value="' + escapeAttr(trx.kategori) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
                     '<div><label class="font-bold text-slate-600 block mb-1">Keterangan</label><input type="text" id="edTrxKet" value="' + escapeAttr(trx.keterangan) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
-                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal (Rp)</label><input type="number" id="edTrxNom" value="' + (parseFloat(trx.nominal) || 0) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Nominal (Rp)</label><input type="text" id="edTrxNom" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" value="' + formatRibuanNumber(trx.nominal) + '" placeholder="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"></div>' +
                     '<div><label class="font-bold text-slate-600 block mb-1">Status Approval</label><select id="edTrxStat" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white">' +
                         '<option value="Pending"' + (trx.status === 'Pending' ? ' selected' : '') + '>Pending</option>' +
                         '<option value="Approved"' + (trx.status === 'Approved' ? ' selected' : '') + '>Approved</option>' +
@@ -2691,7 +2697,7 @@
                     return {
                         kategori: String(document.getElementById('edTrxKat').value || '').trim(),
                         keterangan_manual: String(document.getElementById('edTrxKet').value || '').trim(),
-                        nominal: parseFloat(document.getElementById('edTrxNom').value) || 0,
+                        nominal: parseRibuanValue(document.getElementById('edTrxNom').value),
                         status_approval: document.getElementById('edTrxStat').value
                     };
                 }
@@ -2769,7 +2775,7 @@
                     '<div id="reqEditFields" class="space-y-2">' +
                         '<div><label class="font-bold text-slate-600 block mb-1">Kategori Baru</label><input type="text" id="reqNewKat" value="' + escapeAttr(trx.kategori) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
                         '<div><label class="font-bold text-slate-600 block mb-1">Keterangan Baru</label><input type="text" id="reqNewKet" value="' + escapeAttr(trx.keterangan) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
-                        '<div><label class="font-bold text-slate-600 block mb-1">Nominal Baru (Rp)</label><input type="number" id="reqNewNom" value="' + (parseFloat(trx.nominal) || 0) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"></div>' +
+                        '<div><label class="font-bold text-slate-600 block mb-1">Nominal Baru (Rp)</label><input type="text" id="reqNewNom" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" value="' + formatRibuanNumber(trx.nominal) + '" placeholder="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"></div>' +
                     '</div>' +
                     '<div><label class="font-bold text-slate-600 block mb-1">Alasan Pengajuan (Wajib)</label><input type="text" id="reqAlasan" placeholder="Contoh: Salah ketik nominal nota" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
                 '</div>',
@@ -2791,7 +2797,7 @@
                         data_baru: {
                             kategori: String(document.getElementById('reqNewKat').value || '').trim(),
                             keterangan_manual: String(document.getElementById('reqNewKet').value || '').trim(),
-                            nominal: parseFloat(document.getElementById('reqNewNom').value) || 0
+                            nominal: parseRibuanValue(document.getElementById('reqNewNom').value)
                         }
                     };
                 }
