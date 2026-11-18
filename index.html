@@ -803,39 +803,42 @@
         DEFAULT_GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyuvDbcwiGwoyiF4yrrwdRW-Dwxif8umT1K2qmU9BEJ3L2yjYjkHPUAb_QUDsOy0n8ZWA/exec';
 
         function getGasApiUrl() {
+            try {
+                var savedUrl = String(localStorage.getItem('pettycash_gas_api_url') || '').trim();
+                if (savedUrl !== '') return savedUrl;
+            } catch (e) {}
             if (DEFAULT_GAS_API_URL && String(DEFAULT_GAS_API_URL).trim() !== '') {
                 return String(DEFAULT_GAS_API_URL).trim();
             }
-            try {
-                return String(localStorage.getItem('pettycash_gas_api_url') || '').trim();
-            } catch (e) {
-                return '';
-            }
+            return '';
         }
 
         function updateServerStatusIndicator() {
-            var bar = document.getElementById('serverConfigBar');
-            var txt = document.getElementById('serverStatusText');
-            if (!bar || !txt) return;
+            var statusEl = document.getElementById('serverStatusText');
+            if (!statusEl) return;
             if (typeof google !== 'undefined' && google.script && google.script.run) {
-                bar.classList.add('hide');
+                statusEl.textContent = 'Server: Terhubung (GAS Native)';
+                statusEl.className = 'text-emerald-600 font-bold';
                 return;
             }
             var url = getGasApiUrl();
             if (url) {
-                txt.innerHTML = '<span class="text-emerald-600 font-bold">Server GAS Terhubung</span>';
+                statusEl.textContent = 'Server: Terhubung (API GAS)';
+                statusEl.className = 'text-emerald-600 font-bold';
             } else {
-                txt.innerHTML = '<span class="text-amber-600 font-bold">URL Server GAS belum diisi</span>';
+                statusEl.textContent = 'Server: Belum diatur';
+                statusEl.className = 'text-rose-500 font-bold';
             }
         }
 
         function openGasUrlSettingModal() {
             var currentUrl = getGasApiUrl();
             Swal.fire({
-                title: 'URL Server Google Apps Script',
-                html: '<div class="text-left space-y-2 text-xs mt-2">' +
-                    '<p class="text-slate-500">Masukkan URL Web App Google Apps Script yang berakhiran <b>/exec</b> (pastikan akses deploy diset ke <b>Anyone / Siapa saja</b>):</p>' +
-                    '<input type="url" id="swalGasUrlInput" value="' + escapeHtml(currentUrl) + '" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-mono">' +
+                title: 'Pengaturan URL Server GAS',
+                html: '<div class="text-left space-y-2.5 text-xs mt-2">' +
+                    '<p class="text-slate-500">Masukkan URL Web App Google Apps Script (berakhiran <b>/exec</b>) yang sudah di-deploy dengan akses <b>Anyone / Siapa saja</b>.</p>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">URL Web App (/exec)</label>' +
+                    '<input type="url" id="swalGasApiUrl" value="' + escapeAttr(currentUrl) + '" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-mono"></div>' +
                 '</div>',
                 showCancelButton: true,
                 confirmButtonColor: '#2563eb',
@@ -844,18 +847,69 @@
                 cancelButtonText: 'Batal',
                 customClass: { popup: 'rounded-3xl' },
                 preConfirm: function() {
-                    var val = String(document.getElementById('swalGasUrlInput').value || '').trim();
-                    if (!val || val.indexOf('https://script.google.com/') !== 0) {
-                        Swal.showValidationMessage('Masukkan URL Google Apps Script yang valid (https://script.google.com/.../exec).');
+                    var val = String(document.getElementById('swalGasApiUrl').value || '').trim();
+                    if (val && val.indexOf('https://script.google.com/') !== 0) {
+                        Swal.showValidationMessage('URL harus diawali dengan https://script.google.com/');
                         return false;
                     }
                     return val;
                 }
             }).then(function(res) {
                 if (!res.isConfirmed) return;
-                try { localStorage.setItem('pettycash_gas_api_url', res.value); } catch (e) {}
+                try {
+                    if (res.value) {
+                        localStorage.setItem('pettycash_gas_api_url', res.value);
+                    } else {
+                        localStorage.removeItem('pettycash_gas_api_url');
+                    }
+                } catch (e) {}
                 updateServerStatusIndicator();
-                showToast('URL Server GAS berhasil disimpan!', 'success');
+                showToast('Konfigurasi URL Server GAS disimpan!', 'success');
+            });
+        }
+
+        function compressImageFileToBase64(file, callback) {
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var img = new Image();
+                img.onload = function() {
+                    var canvas = document.createElement('canvas');
+                    var maxDim = 1024;
+                    var w = img.width;
+                    var h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) {
+                            h = Math.round(h * maxDim / w);
+                            w = maxDim;
+                        } else {
+                            w = Math.round(w * maxDim / h);
+                            h = maxDim;
+                        }
+                    }
+                    canvas.width = w;
+                    canvas.height = h;
+                    var ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    var compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+                    callback({
+                        base64: compressedDataUrl.split(',')[1],
+                        mimeType: 'image/jpeg',
+                        dataUrl: compressedDataUrl
+                    });
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleNotaFileSelect(inputEl) {
+            if (!inputEl || !inputEl.files || !inputEl.files[0]) return;
+            compressImageFileToBase64(inputEl.files[0], function(res) {
+                notaBase64Data = res.base64;
+                notaMimeTypeData = res.mimeType;
+                document.getElementById('previewNotaImg').src = res.dataUrl;
+                document.getElementById('previewNotaBox').classList.remove('hide');
             });
         }
 
@@ -1984,42 +2038,6 @@
             }
         }
 
-        function handleNotaFileSelect(inputEl) {
-            if (!inputEl || !inputEl.files || !inputEl.files[0]) return;
-            var file = inputEl.files[0];
-            var reader = new FileReader();
-            reader.onload = function(e) {
-                var img = new Image();
-                img.onload = function() {
-                    var canvas = document.createElement('canvas');
-                    var maxDim = 1024;
-                    var w = img.width;
-                    var h = img.height;
-                    if (w > maxDim || h > maxDim) {
-                        if (w > h) {
-                            h = Math.round(h * maxDim / w);
-                            w = maxDim;
-                        } else {
-                            w = Math.round(w * maxDim / h);
-                            h = maxDim;
-                        }
-                    }
-                    canvas.width = w;
-                    canvas.height = h;
-                    var ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, w, h);
-                    var compressedDataUrl = canvas.toDataURL('image/jpeg', 0.72);
-                    notaBase64Data = compressedDataUrl.split(',')[1];
-                    notaMimeTypeData = 'image/jpeg';
-
-                    document.getElementById('previewNotaImg').src = compressedDataUrl;
-                    document.getElementById('previewNotaBox').classList.remove('hide');
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
         function clearNotaPreview() {
             notaBase64Data = '';
             var inp = document.getElementById('inputFotoNota');
@@ -2248,11 +2266,14 @@
                         var r = reqs[j];
                         var detailBaru = '';
                         if (r.jenis_request === 'Request Edit' && r.data_baru) {
-                            detailBaru = '<div class="p-2.5 rounded-xl bg-[#eef4ff] border border-blue-100 text-[11px] space-y-0.5">' +
+                            detailBaru = '<div class="p-2.5 rounded-xl bg-[#eef4ff] border border-blue-100 text-[11px] space-y-1">' +
                                 '<p class="font-bold text-blue-800">Usulan Perubahan:</p>' +
                                 '<p>Kategori: <b>' + escapeHtml(r.data_baru.kategori || '-') + '</b></p>' +
                                 '<p>Keterangan: <b>' + escapeHtml(r.data_baru.keterangan_manual || '-') + '</b></p>' +
                                 '<p>Nominal Baru: <b>' + formatRupiah(r.data_baru.nominal || 0) + '</b></p>' +
+                                (r.data_baru.url_nota_baru
+                                    ? '<button type="button" onclick="previewNotaImage(\'' + escapeAttr(r.data_baru.url_nota_baru) + '\')" class="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-white border border-blue-200 px-2.5 py-1 rounded-lg hover:bg-blue-50"><i class="ph ph-image"></i> Cek Foto Nota Susulan</button>'
+                                    : '') +
                             '</div>';
                         }
                         hr += '<div class="kasly-card p-4 rounded-2xl space-y-2.5">' +
@@ -3505,6 +3526,18 @@
             var trx = findTrxById(idTrx);
             if (!trx) return;
 
+            var modalNotaBase64 = '';
+            var modalNotaMimeType = 'image/jpeg';
+
+            var existingNotaInfo = trx.url_nota
+                ? '<div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-700">' +
+                    '<span class="font-bold flex items-center gap-1"><i class="ph-fill ph-check-circle text-sm"></i> Foto nota sudah ada</span>' +
+                    '<a href="' + escapeAttr(trx.url_nota) + '" target="_blank" rel="noopener" class="font-extrabold underline text-blue-600">Lihat Foto Lama</a>' +
+                  '</div>'
+                : '<div class="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-700 font-bold flex items-center gap-1.5">' +
+                    '<i class="ph-fill ph-warning-circle text-sm"></i> Belum ada foto nota terlampir' +
+                  '</div>';
+
             Swal.fire({
                 title: 'Edit Transaksi ' + trx.id_transaksi,
                 html: '<div class="text-left space-y-2.5 text-xs mt-2">' +
@@ -3516,6 +3549,21 @@
                         '<option value="Approved"' + (trx.status === 'Approved' ? ' selected' : '') + '>Approved</option>' +
                         '<option value="Rejected"' + (trx.status === 'Rejected' ? ' selected' : '') + '>Rejected</option>' +
                     '</select></div>' +
+                    '<div class="space-y-2 pt-1">' +
+                        '<label class="font-bold text-slate-600 block">Foto Bukti Nota (Susulan / Pengganti)</label>' +
+                        existingNotaInfo +
+                        '<label for="edTrxFotoInput" class="flex items-center justify-center gap-2 w-full p-2.5 border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl bg-slate-50 hover:bg-blue-50/50 cursor-pointer transition-all text-slate-700 font-bold">' +
+                            '<i class="ph ph-camera text-lg text-blue-600"></i>' +
+                            '<span>' + (trx.url_nota ? 'Ganti / Upload Foto Baru' : 'Ambil / Pilih Foto Nota') + '</span>' +
+                            '<input type="file" id="edTrxFotoInput" accept="image/*" class="hidden">' +
+                        '</label>' +
+                        '<div id="edTrxFotoPreviewBox" class="hide relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900">' +
+                            '<img id="edTrxFotoPreviewImg" src="" alt="Preview Nota Baru" class="w-full max-h-44 object-contain mx-auto">' +
+                            '<button type="button" id="edTrxFotoClearBtn" class="absolute top-2 right-2 bg-rose-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1">' +
+                                '<i class="ph ph-trash"></i> Batal Foto' +
+                            '</button>' +
+                        '</div>' +
+                    '</div>' +
                 '</div>',
                 showCancelButton: true,
                 confirmButtonColor: '#2563eb',
@@ -3523,17 +3571,42 @@
                 confirmButtonText: 'Simpan Perubahan',
                 cancelButtonText: 'Batal',
                 customClass: { popup: 'rounded-3xl' },
+                didOpen: function() {
+                    var fileInp = document.getElementById('edTrxFotoInput');
+                    var clearBtn = document.getElementById('edTrxFotoClearBtn');
+                    if (fileInp) {
+                        fileInp.addEventListener('change', function() {
+                            if (!fileInp.files || !fileInp.files[0]) return;
+                            compressImageFileToBase64(fileInp.files[0], function(res) {
+                                modalNotaBase64 = res.base64;
+                                modalNotaMimeType = res.mimeType;
+                                document.getElementById('edTrxFotoPreviewImg').src = res.dataUrl;
+                                document.getElementById('edTrxFotoPreviewBox').classList.remove('hide');
+                            });
+                        });
+                    }
+                    if (clearBtn) {
+                        clearBtn.addEventListener('click', function() {
+                            modalNotaBase64 = '';
+                            if (fileInp) fileInp.value = '';
+                            document.getElementById('edTrxFotoPreviewImg').src = '';
+                            document.getElementById('edTrxFotoPreviewBox').classList.add('hide');
+                        });
+                    }
+                },
                 preConfirm: function() {
                     return {
                         kategori: String(document.getElementById('edTrxKat').value || '').trim(),
                         keterangan_manual: String(document.getElementById('edTrxKet').value || '').trim(),
                         nominal: parseRibuanValue(document.getElementById('edTrxNom').value),
-                        status_approval: document.getElementById('edTrxStat').value
+                        status_approval: document.getElementById('edTrxStat').value,
+                        notaBase64: modalNotaBase64,
+                        notaMimeType: modalNotaMimeType
                     };
                 }
             }).then(function(res) {
                 if (!res.isConfirmed) return;
-                showLoading('Menyimpan perubahan transaksi...');
+                showLoading(res.value.notaBase64 ? 'Mengunggah foto & menyimpan perubahan...' : 'Menyimpan perubahan transaksi...');
                 fetchAPI({
                     action: 'admin_edit_trx',
                     id_transaksi: trx.id_transaksi,
@@ -3541,6 +3614,8 @@
                     keterangan_manual: res.value.keterangan_manual,
                     nominal: res.value.nominal,
                     status_approval: res.value.status_approval,
+                    notaBase64: res.value.notaBase64,
+                    notaMimeType: res.value.notaMimeType,
                     pic_nama: currentUser.nama_lengkap
                 })
                 .then(function(data) {
@@ -3594,20 +3669,47 @@
             var trx = findTrxById(idTrx);
             if (!trx) return;
 
+            var reqNotaBase64 = '';
+            var reqNotaMimeType = 'image/jpeg';
+
+            var reqExistingNotaBadge = trx.url_nota
+                ? '<div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-700">' +
+                    '<span class="font-bold flex items-center gap-1"><i class="ph-fill ph-check-circle text-sm"></i> Foto nota sudah terlampir</span>' +
+                    '<a href="' + escapeAttr(trx.url_nota) + '" target="_blank" rel="noopener" class="font-extrabold underline text-blue-600">Lihat Foto</a>' +
+                  '</div>'
+                : '<div class="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-700 font-bold flex items-center gap-1.5">' +
+                    '<i class="ph-fill ph-warning-circle text-sm"></i> Belum ada foto nota terlampir' +
+                  '</div>';
+
             Swal.fire({
                 title: 'Ajukan Edit / Hapus Nota',
                 html: '<div class="text-left space-y-2.5 text-xs mt-2">' +
                     '<p class="text-slate-500">Perubahan atau penghapusan baru berlaku setelah disetujui oleh Admin/Finance.</p>' +
                     '<div><label class="font-bold text-slate-600 block mb-1">Jenis Pengajuan</label><select id="reqJenisSel" onchange="document.getElementById(\'reqEditFields\').style.display = this.value === \'Request Edit\' ? \'block\' : \'none\'" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-bold">' +
-                        '<option value="Request Edit">Ajukan Edit Data / Nominal</option>' +
+                        '<option value="Request Edit">Ajukan Edit Data / Upload Foto Nota</option>' +
                         '<option value="Request Delete">Ajukan Hapus / Batalkan Nota</option>' +
                     '</select></div>' +
                     '<div id="reqEditFields" class="space-y-2">' +
                         '<div><label class="font-bold text-slate-600 block mb-1">Kategori Baru</label><input type="text" id="reqNewKat" value="' + escapeAttr(trx.kategori) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
                         '<div><label class="font-bold text-slate-600 block mb-1">Keterangan Baru</label><input type="text" id="reqNewKet" value="' + escapeAttr(trx.keterangan) + '" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
                         '<div><label class="font-bold text-slate-600 block mb-1">Nominal Baru (Rp)</label><input type="text" id="reqNewNom" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" value="' + formatRibuanNumber(trx.nominal) + '" placeholder="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold"></div>' +
+                        '<div class="space-y-1.5 pt-1">' +
+                            '<label class="font-bold text-slate-600 block">Foto Bukti Nota (Susulan / Pengganti)</label>' +
+                            reqExistingNotaBadge +
+                            '<label for="reqNewFotoInput" class="flex items-center justify-center gap-2 w-full p-2.5 border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl bg-slate-50 hover:bg-blue-50/50 cursor-pointer transition-all text-slate-700 font-bold">' +
+                                '<i class="ph ph-camera text-lg text-blue-600"></i>' +
+                                '<span>' + (trx.url_nota ? 'Ganti / Upload Foto Nota Baru' : 'Ambil / Pilih Foto Nota') + '</span>' +
+                                '<input type="file" id="reqNewFotoInput" accept="image/*" class="hidden">' +
+                            '</label>' +
+                            '<div id="reqNewFotoPreviewBox" class="hide relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900">' +
+                                '<img id="reqNewFotoPreviewImg" src="" alt="Preview Foto Nota" class="w-full max-h-44 object-contain mx-auto">' +
+                                '<button type="button" id="reqNewFotoClearBtn" class="absolute top-2 right-2 bg-rose-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xs flex items-center gap-1">' +
+                                    '<i class="ph ph-trash"></i> Batal Foto' +
+                                '</button>' +
+                            '</div>' +
+                        '</div>' +
                     '</div>' +
-                    '<div><label class="font-bold text-slate-600 block mb-1">Alasan Pengajuan (Wajib)</label><input type="text" id="reqAlasan" placeholder="Contoh: Salah ketik nominal nota" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
+                    '<div><label class="font-bold text-slate-600 block mb-1">Alasan Pengajuan (Wajib)</label><input type="text" id="reqAlasan" placeholder="Contoh: Lupa upload foto nota / salah nominal" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
                 '</div>',
                 showCancelButton: true,
                 confirmButtonColor: '#2563eb',
@@ -3615,6 +3717,29 @@
                 confirmButtonText: 'Kirim Pengajuan',
                 cancelButtonText: 'Batal',
                 customClass: { popup: 'rounded-3xl' },
+                didOpen: function() {
+                    var fileInp = document.getElementById('reqNewFotoInput');
+                    var clearBtn = document.getElementById('reqNewFotoClearBtn');
+                    if (fileInp) {
+                        fileInp.addEventListener('change', function() {
+                            if (!fileInp.files || !fileInp.files[0]) return;
+                            compressImageFileToBase64(fileInp.files[0], function(res) {
+                                reqNotaBase64 = res.base64;
+                                reqNotaMimeType = res.mimeType;
+                                document.getElementById('reqNewFotoPreviewImg').src = res.dataUrl;
+                                document.getElementById('reqNewFotoPreviewBox').classList.remove('hide');
+                            });
+                        });
+                    }
+                    if (clearBtn) {
+                        clearBtn.addEventListener('click', function() {
+                            reqNotaBase64 = '';
+                            if (fileInp) fileInp.value = '';
+                            document.getElementById('reqNewFotoPreviewImg').src = '';
+                            document.getElementById('reqNewFotoPreviewBox').classList.add('hide');
+                        });
+                    }
+                },
                 preConfirm: function() {
                     var alasan = String(document.getElementById('reqAlasan').value || '').trim();
                     if (!alasan) {
@@ -3624,6 +3749,8 @@
                     return {
                         jenis_request: document.getElementById('reqJenisSel').value,
                         alasan: alasan,
+                        notaBase64: reqNotaBase64,
+                        notaMimeType: reqNotaMimeType,
                         data_baru: {
                             kategori: String(document.getElementById('reqNewKat').value || '').trim(),
                             keterangan_manual: String(document.getElementById('reqNewKet').value || '').trim(),
@@ -3633,13 +3760,15 @@
                 }
             }).then(function(res) {
                 if (!res.isConfirmed) return;
-                showLoading('Mengirim pengajuan ke Admin...');
+                showLoading(res.value.notaBase64 ? 'Mengunggah foto & mengirim pengajuan...' : 'Mengirim pengajuan ke Admin...');
                 fetchAPI({
                     action: 'submit_request_perubahan',
                     id_transaksi: trx.id_transaksi,
                     jenis_request: res.value.jenis_request,
                     request_by: currentUser.id_user,
                     alasan: res.value.alasan,
+                    notaBase64: res.value.notaBase64,
+                    notaMimeType: res.value.notaMimeType,
                     data_baru: res.value.data_baru
                 })
                 .then(function(data) {
