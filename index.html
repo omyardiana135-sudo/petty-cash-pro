@@ -18,6 +18,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- SheetJS (Export Excel .xlsx) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- jsPDF & AutoTable (Export PDF .pdf) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Chart.js (Grafik Pie Analitik Kategori) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -161,7 +164,7 @@
         <div class="flex-1 md:pl-64 pb-24 md:pb-10">
             <div class="max-w-4xl mx-auto p-4 md:p-6 space-y-5">
 
-                <!-- TOP HEADER ROYAL BLUE (INSPIRED BY KASLY CLEAN UI) -->
+                <!-- TOP HEADER ROYAL BLUE -->
                 <header class="kasly-card rounded-3xl overflow-hidden">
                     <div id="topBlueBanner" class="kasly-header-gradient p-4 md:p-5 text-white">
                         <div class="flex items-center justify-between gap-3">
@@ -231,7 +234,7 @@
                             </button>
                         </div>
 
-                        <!-- Mode Admin: Distribusi (Pastel Cards ala Screenshot) -->
+                        <!-- Mode Admin: Distribusi -->
                         <div id="adminSaldoGrid" class="admin-dist-only hide grid grid-cols-2 gap-3">
                             <div class="bg-[#eef4ff] border border-blue-100/90 rounded-2xl p-3.5 md:p-4 cursor-pointer hover:bg-blue-100/50 transition-colors" onclick="switchTab('kasinduk')">
                                 <div class="flex items-center gap-1.5 text-blue-600">
@@ -249,7 +252,7 @@
                             </div>
                         </div>
 
-                        <!-- Mode Admin: Manufaktur (Pastel Cards ala Screenshot) -->
+                        <!-- Mode Admin: Manufaktur -->
                         <div id="adminMfgSaldoGrid" class="admin-mfg-only hide grid grid-cols-2 gap-3">
                             <div class="bg-[#eafbf1] border border-emerald-100/90 rounded-2xl p-3.5 md:p-4 cursor-pointer hover:bg-emerald-100/50 transition-colors" onclick="switchTab('kasinduk')">
                                 <div class="flex items-center gap-1.5 text-teal-700">
@@ -503,143 +506,133 @@
 
                 <!-- ==================== TAB 6: LAPORAN TRANSAKSI BY KATEGORI & PIE CHART (ADMIN) ==================== -->
                 <section id="tab-laporan" class="tab-section hide space-y-4">
-                    <!-- Header Laporan + Tombol Export Excel -->
+                    <!-- Header Laporan + Tombol Export Excel & PDF -->
                     <div class="kasly-card p-5 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                             <h3 id="laporanMainTitle" class="font-extrabold text-base md:text-lg text-slate-900">Laporan Transaksi by Kategori</h3>
                             <p id="laporanMainSubtitle" class="text-xs text-slate-500">Default periode bulan berjalan &bull; Klik kategori atau grafik pie untuk menyaring detail</p>
                         </div>
-                        <button type="button" onclick="exportLaporanExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-3 rounded-2xl shadow-sm shadow-emerald-200 flex items-center justify-center gap-2 transition-all shrink-0">
-                            <i class="ph-fill ph-microsoft-excel-logo text-lg"></i> Download Excel (.xlsx)
-                        </button>
-                    </div>
-
-                    <!-- Pill Bar Periode Cepat (Ala Kasly Screenshot - Default Bulan Ini) -->
-                    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-                        <button type="button" data-period="THIS_MONTH" onclick="setLaporanPeriodPreset('THIS_MONTH')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-blue-600 text-white shadow-xs shrink-0 transition-all">
-                            Bulan Ini
-                        </button>
-                        <button type="button" data-period="TODAY" onclick="setLaporanPeriodPreset('TODAY')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">
-                            Hari Ini
-                        </button>
-                        <button type="button" data-period="THIS_WEEK" onclick="setLaporanPeriodPreset('THIS_WEEK')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">
-                            Minggu Ini
-                        </button>
-                        <button type="button" data-period="LAST_MONTH" onclick="setLaporanPeriodPreset('LAST_MONTH')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">
-                            Bulan Lalu
-                        </button>
-                        <button type="button" data-period="ALL" onclick="setLaporanPeriodPreset('ALL')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">
-                            Semua Waktu
-                        </button>
-                    </div>
-
-                    <!-- Panel Filter Tanggal, Kategori, User & Status -->
-                    <div class="kasly-card p-4 md:p-5 rounded-3xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-                        <div>
-                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Dari Tanggal</label>
-                            <input type="date" id="repFilterStart" onchange="onCustomDateFilterChange()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/60 outline-none focus:border-blue-600 focus:bg-white">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Sampai Tanggal</label>
-                            <input type="date" id="repFilterEnd" onchange="onCustomDateFilterChange()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/60 outline-none focus:border-blue-600 focus:bg-white">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Kategori</label>
-                            <select id="repFilterKategori" onchange="renderLaporan()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/60 outline-none focus:border-blue-600 focus:bg-white">
-                                <option value="ALL">Semua Kategori</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label id="repFilterDriverLabel" class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Pilih Driver / Ops</label>
-                            <select id="repFilterDriver" onchange="renderLaporan()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/60 outline-none focus:border-blue-600 focus:bg-white">
-                                <option value="ALL">Semua User</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Status Approval</label>
-                            <select id="repFilterStatus" onchange="renderLaporan()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/60 outline-none focus:border-blue-600 focus:bg-white">
-                                <option value="ALL">Semua Status</option>
-                                <option value="Approved">Approved (Disetujui)</option>
-                                <option value="Pending">Pending</option>
-                                <option value="Rejected">Rejected</option>
-                            </select>
+                        <div class="grid grid-cols-2 sm:flex items-center gap-2 shrink-0">
+                            <button type="button" onclick="exportLaporanExcel()" class="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-xs px-3.5 py-3 rounded-2xl shadow-sm shadow-emerald-200 flex items-center justify-center gap-1.5 transition-all">
+                                <i class="ph-fill ph-microsoft-excel-logo text-base"></i> Excel (.xlsx)
+                            </button>
+                            <button type="button" onclick="exportLaporanPdf()" class="bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white font-bold text-xs px-3.5 py-3 rounded-2xl shadow-sm shadow-rose-200 flex items-center justify-center gap-1.5 transition-all">
+                                <i class="ph-fill ph-file-pdf text-base"></i> PDF (.pdf)
+                            </button>
                         </div>
                     </div>
 
-                    <!-- 2x2 Pastel Summary KPI Cards (Persis Seperti Referensi Gambar!) -->
-                    <div class="grid grid-cols-2 gap-3">
-                        <!-- Card 1: Soft Blue -->
-                        <div class="bg-[#eef4ff] border border-blue-100/80 p-4 rounded-2xl">
-                            <div class="flex items-center gap-1.5 text-blue-600">
-                                <i class="ph-fill ph-receipt text-base"></i>
-                                <p class="text-[11px] font-bold">Total Transaksi</p>
-                            </div>
-                            <p id="repTotalCount" class="text-xl md:text-2xl font-extrabold text-slate-900 mt-1.5">0</p>
-                            <p id="repCountSub" class="text-[10px] font-semibold text-blue-600/80 mt-0.5">0 Approved &bull; 0 Pending</p>
+                    <!-- Pill Filter Cepat & Custom Filter (Tanggal, Kategori, User, Status) -->
+                    <div class="kasly-card p-4 md:p-5 rounded-3xl space-y-3.5">
+                        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                            <button type="button" data-period="THIS_MONTH" onclick="setLaporanPeriodPreset('THIS_MONTH')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-blue-600 text-white shadow-xs shrink-0 transition-all">Bulan Ini</button>
+                            <button type="button" data-period="TODAY" onclick="setLaporanPeriodPreset('TODAY')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">Hari Ini</button>
+                            <button type="button" data-period="THIS_WEEK" onclick="setLaporanPeriodPreset('THIS_WEEK')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">Minggu Ini</button>
+                            <button type="button" data-period="LAST_MONTH" onclick="setLaporanPeriodPreset('LAST_MONTH')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">Bulan Lalu</button>
+                            <button type="button" data-period="ALL" onclick="setLaporanPeriodPreset('ALL')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">Semua Waktu</button>
                         </div>
 
-                        <!-- Card 2: Soft Mint Green -->
-                        <div class="bg-[#eafbf1] border border-emerald-100/80 p-4 rounded-2xl">
-                            <div class="flex items-center gap-1.5 text-emerald-600">
-                                <i class="ph-fill ph-trend-up text-base"></i>
-                                <p id="repTotalNominalLabel" class="text-[11px] font-bold">Total Pengeluaran</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Dari Tanggal</label>
+                                <input type="date" id="repFilterStart" onchange="onCustomDateFilterChange()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50/70 outline-none focus:border-blue-600">
                             </div>
-                            <p id="repTotalApproved" class="text-lg md:text-2xl font-extrabold text-slate-900 mt-1.5 truncate">Rp 0</p>
-                            <p id="repPendingSub" class="text-[10px] font-semibold text-emerald-700/80 mt-0.5 truncate">Pending: Rp 0</p>
-                        </div>
-
-                        <!-- Card 3: Soft Warm Amber -->
-                        <div class="bg-[#fef5e7] border border-amber-100/80 p-4 rounded-2xl">
-                            <div class="flex items-center gap-1.5 text-amber-600">
-                                <i class="ph-fill ph-tag text-base"></i>
-                                <p class="text-[11px] font-bold">Kategori Terbesar</p>
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Sampai Tanggal</label>
+                                <input type="date" id="repFilterEnd" onchange="onCustomDateFilterChange()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50/70 outline-none focus:border-blue-600">
                             </div>
-                            <p id="repTopKategoriName" class="text-base md:text-lg font-extrabold text-slate-900 mt-1.5 truncate">-</p>
-                            <p id="repTopKategoriVal" class="text-[10px] font-semibold text-amber-700/80 mt-0.5 truncate">Rp 0</p>
-                        </div>
-
-                        <!-- Card 4: Soft Lavender Purple -->
-                        <div class="bg-[#f3eeff] border border-violet-100/80 p-4 rounded-2xl">
-                            <div class="flex items-center gap-1.5 text-violet-600">
-                                <i class="ph-fill ph-calendar-blank text-base"></i>
-                                <p class="text-[11px] font-bold">Periode</p>
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Kategori Biaya</label>
+                                <select id="repFilterKategori" onchange="renderLaporan()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50/70 outline-none focus:border-blue-600">
+                                    <option value="ALL">Semua Kategori</option>
+                                </select>
                             </div>
-                            <p id="repPeriodDisplay" class="text-base md:text-lg font-extrabold text-slate-900 mt-1.5 truncate">Bulan Ini</p>
-                            <p id="repPeriodDateSub" class="text-[10px] font-semibold text-violet-600/80 mt-0.5 truncate">Bulan berjalan</p>
+                            <div>
+                                <label id="repFilterDriverLabel" class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Pilih Driver / Ops</label>
+                                <select id="repFilterDriver" onchange="renderLaporan()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50/70 outline-none focus:border-blue-600">
+                                    <option value="ALL">Semua Kas Driver &amp; Operasional</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Status Nota</label>
+                                <select id="repFilterStatus" onchange="renderLaporan()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50/70 outline-none focus:border-blue-600">
+                                    <option value="ALL">Semua Status</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Rejected">Rejected</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Visualisasi Grafik Pie & Ringkasan per Kategori -->
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
-                        <!-- Kolom Grafik Pie -->
-                        <div class="md:col-span-5 kasly-card p-5 rounded-3xl flex flex-col justify-between">
-                            <div class="flex items-center justify-between mb-3">
-                                <div>
-                                    <h4 class="font-extrabold text-sm text-slate-900">Grafik Proporsi Kategori</h4>
-                                    <p class="text-[11px] text-slate-400">Distribusi biaya berdasarkan kategori</p>
-                                </div>
-                                <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                                    <i class="ph-fill ph-chart-pie-slice text-lg"></i>
-                                </span>
+                    <!-- 2x2 Kartu Ringkasan Pastel (Kasly Clean Style) -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div class="bg-[#eef4ff] border border-blue-100 rounded-3xl p-4">
+                            <div class="w-8 h-8 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center mb-2">
+                                <i class="ph-fill ph-receipt text-lg"></i>
+                            </div>
+                            <p class="text-[11px] font-bold text-blue-600">Total Transaksi</p>
+                            <p id="repTotalCount" class="text-lg md:text-xl font-extrabold text-slate-900 mt-0.5">0 Nota</p>
+                            <p id="repCountSub" class="text-[10px] text-slate-500 mt-1">0 Approved &bull; 0 Pending</p>
+                        </div>
+
+                        <div class="bg-[#eafbf1] border border-emerald-100 rounded-3xl p-4">
+                            <div class="w-8 h-8 rounded-xl bg-emerald-600/10 text-emerald-600 flex items-center justify-center mb-2">
+                                <i class="ph-fill ph-trend-up text-lg"></i>
+                            </div>
+                            <p id="repTotalNominalLabel" class="text-[11px] font-bold text-emerald-600 truncate">Total Pengeluaran</p>
+                            <p id="repTotalApproved" class="text-lg md:text-xl font-extrabold text-slate-900 mt-0.5 truncate">Rp 0</p>
+                            <p id="repPendingSub" class="text-[10px] text-slate-500 mt-1 truncate">Approved: Rp 0</p>
+                        </div>
+
+                        <div class="bg-[#fef5e7] border border-amber-100 rounded-3xl p-4">
+                            <div class="w-8 h-8 rounded-xl bg-amber-600/10 text-amber-600 flex items-center justify-center mb-2">
+                                <i class="ph-fill ph-tag text-lg"></i>
+                            </div>
+                            <p class="text-[11px] font-bold text-amber-600">Pos Terbesar</p>
+                            <p id="repTopKategoriName" class="text-base md:text-lg font-extrabold text-slate-900 mt-0.5 truncate">-</p>
+                            <p id="repTopKategoriVal" class="text-[10px] text-slate-500 mt-1 truncate">Rp 0</p>
+                        </div>
+
+                        <div class="bg-[#f3efff] border border-purple-100 rounded-3xl p-4">
+                            <div class="w-8 h-8 rounded-xl bg-purple-600/10 text-purple-600 flex items-center justify-center mb-2">
+                                <i class="ph-fill ph-calendar-blank text-lg"></i>
+                            </div>
+                            <p class="text-[11px] font-bold text-purple-600">Periode</p>
+                            <p id="repPeriodDisplay" class="text-base md:text-lg font-extrabold text-slate-900 mt-0.5 truncate">Bulan Ini</p>
+                            <p id="repPeriodDateSub" class="text-[10px] text-slate-500 mt-1 truncate">-</p>
+                        </div>
+                    </div>
+
+                    <!-- Grafik Pie & Rincian Pengeluaran per Kategori -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <!-- Kartu Kiri: Grafik Pie -->
+                        <div class="kasly-card p-5 rounded-3xl flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-extrabold text-sm md:text-base text-slate-900 flex items-center gap-2">
+                                    <i class="ph-fill ph-chart-pie-slice text-blue-600 text-lg"></i> Grafik Proporsi Kategori
+                                </h4>
+                                <p class="text-xs text-slate-500 mt-0.5">Tap pada bagian pie chart untuk menyaring nota kategori tersebut</p>
                             </div>
 
-                            <div id="pieChartContainer" class="relative h-60 w-full flex items-center justify-center my-auto">
+                            <div id="pieChartContainer" class="relative h-64 w-full my-3">
                                 <canvas id="categoryPieChart"></canvas>
                             </div>
+
                             <div id="pieChartEmptyState" class="hide py-12 text-center text-xs text-slate-400 font-semibold">
-                                Belum ada data nominal untuk grafik pada periode ini.
+                                Belum ada data transaksi untuk ditampilkan pada grafik pie.
                             </div>
                         </div>
 
-                        <!-- Kolom Rincian Nominal per Kategori -->
-                        <div class="md:col-span-7 kasly-card p-5 rounded-3xl space-y-3">
+                        <!-- Kartu Kanan: Rincian per Kategori -->
+                        <div class="kasly-card p-5 rounded-3xl space-y-3">
                             <div class="flex items-center justify-between gap-2">
                                 <div>
-                                    <h4 class="font-extrabold text-sm text-slate-900">Rincian Pengeluaran per Kategori</h4>
-                                    <p class="text-[11px] text-slate-400">Tap kategori untuk melihat daftar notanya di bawah</p>
+                                    <h4 class="font-extrabold text-sm md:text-base text-slate-900">Rincian per Kategori</h4>
+                                    <p class="text-xs text-slate-500">Klik kategori untuk melihat daftar notanya</p>
                                 </div>
-                                <button type="button" id="btnResetKatFilter" onclick="selectLaporanKategori('ALL')" class="hide text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full transition-colors">
-                                    Semua Kategori
+                                <button type="button" id="btnResetKatFilter" onclick="selectLaporanKategori('ALL')" class="hide text-[11px] font-bold text-blue-600 bg-[#eef4ff] hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors shrink-0">
+                                    Reset Filter
                                 </button>
                             </div>
 
@@ -647,40 +640,44 @@
                         </div>
                     </div>
 
-                    <!-- Daftar Detail Nota Sesuai Filter -->
-                    <div class="space-y-2.5">
-                        <div class="flex items-center justify-between px-1">
-                            <h4 id="laporanDetailListTitle" class="font-extrabold text-sm text-slate-800">Daftar Nota Terfilter</h4>
-                            <span id="laporanDetailListBadge" class="text-[11px] font-bold text-slate-400">0 item</span>
+                    <!-- Daftar Detail Nota Terfilter -->
+                    <div class="space-y-3">
+                        <div class="kasly-card px-5 py-3.5 rounded-2xl flex items-center justify-between">
+                            <h4 id="laporanDetailListTitle" class="font-extrabold text-sm text-slate-900">Daftar Nota Terfilter</h4>
+                            <span id="laporanDetailListBadge" class="text-[11px] font-extrabold text-blue-600 bg-[#eef4ff] px-3 py-1 rounded-full">0 nota</span>
                         </div>
-                        <div id="listLaporanPreview" class="space-y-2.5"></div>
+                        <div id="listLaporanPreview" class="space-y-3"></div>
                     </div>
                 </section>
 
-                <!-- ==================== TAB 7: PENGATURAN & KELOLA AKUN ==================== -->
+                <!-- ==================== TAB 7: PENGATURAN & AKUN ==================== -->
                 <section id="tab-pengaturan" class="tab-section hide space-y-5">
-                    <!-- Kartu Profil & Install PWA -->
-                    <div class="kasly-card p-5 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div class="flex items-center gap-3.5">
-                            <div class="w-12 h-12 rounded-2xl bg-[#eef4ff] text-blue-600 flex items-center justify-center text-2xl font-bold">
-                                <i class="ph-fill ph-identification-card"></i>
-                            </div>
-                            <div>
-                                <h3 id="profileCardName" class="font-extrabold text-base text-slate-900">Nama User</h3>
-                                <p class="text-xs text-slate-500"><span id="profileCardUsername">@username</span> &bull; <span id="profileCardId">USR-000</span></p>
-                                <span id="profileCardRole" class="inline-block mt-1 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700">Role</span>
+                    <!-- Kartu Profil Akun Pengguna -->
+                    <div class="kasly-card p-5 rounded-3xl space-y-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3.5 min-w-0">
+                                <div class="w-12 h-12 rounded-2xl kasly-header-gradient text-white flex items-center justify-center text-2xl shrink-0">
+                                    <i class="ph-fill ph-identification-card"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <h3 id="profileCardName" class="font-extrabold text-slate-900 text-base truncate">Nama User</h3>
+                                    <p class="text-xs text-slate-500">
+                                        <span id="profileCardUsername">@username</span> &bull; ID: <span id="profileCardId" class="font-bold text-slate-700">USR-000</span>
+                                    </p>
+                                    <span id="profileCardRole" class="inline-block mt-1 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-[#eef4ff] text-blue-700">Role</span>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="flex flex-wrap gap-2">
-                            <button type="button" id="btnInstallPwa" onclick="triggerInstallPwa()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-blue-200 flex items-center gap-1.5 transition-all">
-                                <i class="ph ph-download-simple text-base"></i> Install App (PWA)
+                        <div class="pt-3 border-t border-slate-100 flex flex-wrap gap-2">
+                            <button type="button" id="btnInstallPwa" onclick="triggerInstallPwa()" class="flex-1 sm:flex-none bg-[#eef4ff] hover:bg-blue-100 text-blue-700 font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors">
+                                <i class="ph-fill ph-device-mobile text-base"></i> Install Aplikasi ke HP
                             </button>
-                            <button type="button" id="btnConfigGasServer" onclick="openGasUrlSettingModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors">
-                                <i class="ph ph-plugs-connected text-base"></i> Server API
+                            <button type="button" onclick="requestDeviceNotificationPermission()" class="flex-1 sm:flex-none bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors">
+                                <i class="ph-fill ph-bell-ringing text-base"></i> Aktifkan Notifikasi
                             </button>
-                            <button type="button" onclick="logoutApp()" class="md:hidden bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors">
-                                <i class="ph ph-sign-out text-base"></i> Keluar
+                            <button type="button" onclick="logoutApp()" class="w-full sm:w-auto sm:ml-auto bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-colors">
+                                <i class="ph ph-sign-out text-base"></i> Keluar Akun
                             </button>
                         </div>
                     </div>
@@ -801,7 +798,9 @@
         // =========================================================================
         // 0. KONFIGURASI URL SERVER GOOGLE APPS SCRIPT (UNTUK GITHUB PAGES)
         // =========================================================================
-        var DEFAULT_GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyuvDbcwiGwoyiF4yrrwdRW-Dwxif8umT1K2qmU9BEJ3L2yjYjkHPUAb_QUDsOy0n8ZWA/exec';
+        var DEFAULT_GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyuvDbcwiGwoyiGwoyiF4yrrwdRW-Dwxif8umT1K2qmU9BEJ3L2yjYjkHPUAb_QUDsOy0n8ZWA/exec';
+        // Pastikan URL yang aktif di bawah ini adalah URL asli milik Anda:
+        DEFAULT_GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyuvDbcwiGwoyiF4yrrwdRW-Dwxif8umT1K2qmU9BEJ3L2yjYjkHPUAb_QUDsOy0n8ZWA/exec';
 
         function getGasApiUrl() {
             if (DEFAULT_GAS_API_URL && String(DEFAULT_GAS_API_URL).trim() !== '') {
@@ -884,18 +883,17 @@
             approvedTrxMfg: 0
         };
 
-        // Palet Warna Harmonis untuk Grafik Pie & Rincian Kategori
         var CHART_COLORS = [
-            '#2563eb', // Royal Blue
-            '#10b981', // Emerald
-            '#f59e0b', // Amber
-            '#8b5cf6', // Violet
-            '#06b6d4', // Cyan
-            '#ec4899', // Pink
-            '#f97316', // Orange
-            '#14b8a6', // Teal
-            '#6366f1', // Indigo
-            '#84cc16'  // Lime
+            '#2563eb',
+            '#10b981',
+            '#f59e0b',
+            '#8b5cf6',
+            '#06b6d4',
+            '#ec4899',
+            '#f97316',
+            '#14b8a6',
+            '#6366f1',
+            '#84cc16'
         ];
 
         var SESSION_KEY = 'pettycash_pro_session_v1';
@@ -961,6 +959,7 @@
             document.getElementById('loginScreen').classList.add('hide');
             document.getElementById('appScreen').classList.remove('hide');
             applyRoleUI();
+            setLaporanPeriodPreset('THIS_MONTH', true);
             switchTab(currentTab, true);
             loadDashboardData(true);
             startAutoSync();
@@ -1426,10 +1425,14 @@
                 roleBadge.textContent = currentUser.role;
             }
 
-            document.getElementById('profileCardName').textContent = currentUser.nama_lengkap;
-            document.getElementById('profileCardUsername').textContent = '@' + currentUser.username;
-            document.getElementById('profileCardId').textContent = currentUser.id_user;
-            document.getElementById('profileCardRole').textContent = currentUser.role;
+            var pName = document.getElementById('profileCardName');
+            var pUser = document.getElementById('profileCardUsername');
+            var pId = document.getElementById('profileCardId');
+            var pRole = document.getElementById('profileCardRole');
+            if (pName) pName.textContent = currentUser.nama_lengkap;
+            if (pUser) pUser.textContent = '@' + currentUser.username;
+            if (pId) pId.textContent = currentUser.id_user;
+            if (pRole) pRole.textContent = currentUser.role;
 
             var adminEls = document.querySelectorAll('.admin-only');
             for (var i = 0; i < adminEls.length; i++) {
@@ -1456,6 +1459,7 @@
             }
 
             updateModeVisuals();
+            toggleAddSaldoVisibility();
         }
 
         function switchAppMode(mode) {
@@ -1723,7 +1727,6 @@
             var elMfgExp = document.getElementById('headerTotalMfgExpense');
             if (elMfgExp) elMfgExp.textContent = formatRupiah(totalMfgExp);
 
-            // Badges
             var pendingTopups = isFieldDistribusiUser()
                 ? (dashboardData.driver_topups || []).filter(function(k) { return k.status_topup === 'Pending'; }).length
                 : 0;
@@ -1753,7 +1756,7 @@
         }
 
         // =========================================================================
-        // 8. FILTER & RENDER BERANDA TRANSAKSI (CLEAN KASLY CARD STYLE)
+        // 8. FILTER & RENDER BERANDA TRANSAKSI
         // =========================================================================
         function populateFilterDropdowns() {
             if (!dashboardData || !isAdminUser()) return;
@@ -1786,7 +1789,6 @@
                 if (prevR) repSel.value = prevR;
             }
 
-            // Populate Kategori Filter pada Tab Laporan
             var katSel = document.getElementById('repFilterKategori');
             if (katSel) {
                 var prevK = katSel.value || 'ALL';
@@ -2335,7 +2337,6 @@
                 if (btnTopupDrv) btnTopupDrv.disabled = false;
             }
 
-            // Grid Saldo Driver & Operasional
             var gridDrv = document.getElementById('gridDriverBalances');
             if (gridDrv) {
                 var drvs = dashboardData.drivers || [];
@@ -2551,7 +2552,7 @@
         }
 
         // =========================================================================
-        // 13. LAPORAN TRANSAKSI BY KATEGORI, PIE CHART & EXPORT EXCEL (.XLSX)
+        // 13. LAPORAN TRANSAKSI BY KATEGORI, PIE CHART, EXCEL (.XLSX) & PDF (.PDF)
         // =========================================================================
         function updatePeriodPillStyles(preset) {
             var pills = document.querySelectorAll('.period-pill');
@@ -2587,7 +2588,7 @@
                 startStr = toLocalIsoDate(now);
                 endStr = toLocalIsoDate(now);
             } else if (preset === 'THIS_WEEK') {
-                var dayOfWeek = now.getDay(); // 0 = Minggu, 1 = Senin
+                var dayOfWeek = now.getDay();
                 var diffToMon = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
                 var monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMon);
                 var sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
@@ -2628,7 +2629,6 @@
             renderLaporan();
         }
 
-        // Mengambil data terfilter berdasarkan Tanggal, User, dan Status (sebelum filter kategori spesifik, agar Pie Chart selalu menampilkan perbandingan semua kategori dalam periode tersebut!)
         function getBasePeriodLaporanData() {
             if (!dashboardData) return [];
             var isMfg = (activeMode === 'Manufaktur');
@@ -2808,7 +2808,6 @@
             var agg = aggregateByCategory(basePeriodData);
             var selectedKat = document.getElementById('repFilterKategori') ? document.getElementById('repFilterKategori').value : 'ALL';
 
-            // Hitung KPI dari data yang sedang tampil (filteredData)
             var totFilteredNominal = 0;
             var totApp = 0;
             var totPend = 0;
@@ -2827,57 +2826,60 @@
                 }
             }
 
-            // Update 2x2 Pastel KPI Cards
-            document.getElementById('repTotalCount').textContent = filteredData.length + ' Nota';
-            document.getElementById('repCountSub').textContent = countApp + ' Approved • ' + countPend + ' Pending';
+            var elTotCount = document.getElementById('repTotalCount');
+            var elCountSub = document.getElementById('repCountSub');
+            if (elTotCount) elTotCount.textContent = filteredData.length + ' Nota';
+            if (elCountSub) elCountSub.textContent = countApp + ' Approved • ' + countPend + ' Pending';
 
             var nomLabelEl = document.getElementById('repTotalNominalLabel');
             if (nomLabelEl) {
                 nomLabelEl.textContent = selectedKat !== 'ALL' ? ('Total ' + selectedKat) : 'Total Pengeluaran';
             }
-            document.getElementById('repTotalApproved').textContent = formatRupiah(totFilteredNominal);
-            document.getElementById('repPendingSub').textContent = 'Approved: ' + formatRupiah(totApp);
+            var elTotApp = document.getElementById('repTotalApproved');
+            var elPendSub = document.getElementById('repPendingSub');
+            if (elTotApp) elTotApp.textContent = formatRupiah(totFilteredNominal);
+            if (elPendSub) elPendSub.textContent = 'Approved: ' + formatRupiah(totApp);
 
-            // Kategori Terbesar dalam periode
             var topKatNameEl = document.getElementById('repTopKategoriName');
             var topKatValEl = document.getElementById('repTopKategoriVal');
-            if (agg.items.length > 0) {
-                topKatNameEl.textContent = agg.items[0].kategori;
-                topKatValEl.textContent = formatRupiah(agg.items[0].total) + ' (' + agg.items[0].percent.toFixed(1) + '%)';
-            } else {
-                topKatNameEl.textContent = '-';
-                topKatValEl.textContent = 'Rp 0';
+            if (topKatNameEl && topKatValEl) {
+                if (agg.items.length > 0) {
+                    topKatNameEl.textContent = agg.items[0].kategori;
+                    topKatValEl.textContent = formatRupiah(agg.items[0].total) + ' (' + agg.items[0].percent.toFixed(1) + '%)';
+                } else {
+                    topKatNameEl.textContent = '-';
+                    topKatValEl.textContent = 'Rp 0';
+                }
             }
 
-            // Periode Display
             var dStart = document.getElementById('repFilterStart') ? document.getElementById('repFilterStart').value : '';
             var dEnd = document.getElementById('repFilterEnd') ? document.getElementById('repFilterEnd').value : '';
             var periodTitleEl = document.getElementById('repPeriodDisplay');
             var periodSubEl = document.getElementById('repPeriodDateSub');
-            if (activePeriodPreset === 'THIS_MONTH') {
-                periodTitleEl.textContent = 'Bulan Ini';
-                periodSubEl.textContent = formatDisplayMonthYear(dStart);
-            } else if (activePeriodPreset === 'TODAY') {
-                periodTitleEl.textContent = 'Hari Ini';
-                periodSubEl.textContent = formatDisplayShortDate(dStart);
-            } else if (activePeriodPreset === 'THIS_WEEK') {
-                periodTitleEl.textContent = 'Minggu Ini';
-                periodSubEl.textContent = formatDisplayShortDate(dStart) + ' - ' + formatDisplayShortDate(dEnd);
-            } else if (activePeriodPreset === 'LAST_MONTH') {
-                periodTitleEl.textContent = 'Bulan Lalu';
-                periodSubEl.textContent = formatDisplayMonthYear(dStart);
-            } else if (activePeriodPreset === 'ALL') {
-                periodTitleEl.textContent = 'Semua Waktu';
-                periodSubEl.textContent = 'Seluruh riwayat';
-            } else {
-                periodTitleEl.textContent = 'Custom Tanggal';
-                periodSubEl.textContent = (dStart ? formatDisplayShortDate(dStart) : 'Awal') + ' - ' + (dEnd ? formatDisplayShortDate(dEnd) : 'Sekarang');
+            if (periodTitleEl && periodSubEl) {
+                if (activePeriodPreset === 'THIS_MONTH') {
+                    periodTitleEl.textContent = 'Bulan Ini';
+                    periodSubEl.textContent = formatDisplayMonthYear(dStart);
+                } else if (activePeriodPreset === 'TODAY') {
+                    periodTitleEl.textContent = 'Hari Ini';
+                    periodSubEl.textContent = formatDisplayShortDate(dStart);
+                } else if (activePeriodPreset === 'THIS_WEEK') {
+                    periodTitleEl.textContent = 'Minggu Ini';
+                    periodSubEl.textContent = formatDisplayShortDate(dStart) + ' - ' + formatDisplayShortDate(dEnd);
+                } else if (activePeriodPreset === 'LAST_MONTH') {
+                    periodTitleEl.textContent = 'Bulan Lalu';
+                    periodSubEl.textContent = formatDisplayMonthYear(dStart);
+                } else if (activePeriodPreset === 'ALL') {
+                    periodTitleEl.textContent = 'Semua Waktu';
+                    periodSubEl.textContent = 'Seluruh riwayat';
+                } else {
+                    periodTitleEl.textContent = 'Custom Tanggal';
+                    periodSubEl.textContent = (dStart ? formatDisplayShortDate(dStart) : 'Awal') + ' - ' + (dEnd ? formatDisplayShortDate(dEnd) : 'Sekarang');
+                }
             }
 
-            // Render Grafik Pie
             renderCategoryPieChart(agg);
 
-            // Render Rincian per Kategori
             var btnResetKat = document.getElementById('btnResetKatFilter');
             if (btnResetKat) {
                 if (selectedKat !== 'ALL') btnResetKat.classList.remove('hide');
@@ -2920,7 +2922,6 @@
                 }
             }
 
-            // Render Daftar Detail Nota Terfilter
             var detailTitle = document.getElementById('laporanDetailListTitle');
             var detailBadge = document.getElementById('laporanDetailListBadge');
             if (detailTitle) {
@@ -2990,14 +2991,246 @@
             showToast('File Excel (Ringkasan Kategori + Detail) berhasil diunduh!', 'success');
         }
 
+        function exportLaporanPdf() {
+            var data = getFilteredLaporanData();
+            if (data.length === 0) {
+                showToast('Tidak ada data untuk diunduh.', 'warning');
+                return;
+            }
+
+            var jsPDFConstructor = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : window.jsPDF;
+            if (!jsPDFConstructor) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Library PDF Belum Siap',
+                    text: 'Pastikan koneksi internet aktif untuk memuat generator PDF, lalu coba kembali.',
+                    confirmButtonColor: '#2563eb',
+                    customClass: { popup: 'rounded-3xl' }
+                });
+                return;
+            }
+
+            var isMfg = (activeMode === 'Manufaktur');
+            var themeRgb = isMfg ? [15, 118, 110] : [29, 92, 232];
+            var softBgRgb = isMfg ? [240, 253, 250] : [238, 244, 255];
+
+            var agg = aggregateByCategory(data);
+            var totAll = 0;
+            var totApp = 0;
+            var totPend = 0;
+            for (var i = 0; i < data.length; i++) {
+                var nom = parseFloat(data[i].nominal) || 0;
+                totAll += nom;
+                if (data[i].status === 'Approved') totApp += nom;
+                else if (data[i].status === 'Pending') totPend += nom;
+            }
+
+            var periodTitle = document.getElementById('repPeriodDisplay') ? document.getElementById('repPeriodDisplay').textContent : 'Periode Terpilih';
+            var periodSub = document.getElementById('repPeriodDateSub') ? document.getElementById('repPeriodDateSub').textContent : '';
+            var katSelEl = document.getElementById('repFilterKategori');
+            var drvSelEl = document.getElementById('repFilterDriver');
+            var statSelEl = document.getElementById('repFilterStatus');
+
+            var katLabel = (katSelEl && katSelEl.value !== 'ALL') ? katSelEl.value : 'Semua Kategori';
+            var drvLabel = (drvSelEl && drvSelEl.selectedIndex >= 0) ? drvSelEl.options[drvSelEl.selectedIndex].text : 'Semua User';
+            var statLabel = (statSelEl && statSelEl.selectedIndex >= 0) ? statSelEl.options[statSelEl.selectedIndex].text : 'Semua Status';
+
+            var now = new Date();
+            var printTime = toLocalIsoDate(now) + ' ' + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            var printerName = (currentUser && currentUser.nama_lengkap) ? currentUser.nama_lengkap : 'Admin';
+
+            var doc = new jsPDFConstructor({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            var pageWidth = doc.internal.pageSize.getWidth();
+            var marginX = 14;
+
+            doc.setFillColor(themeRgb[0], themeRgb[1], themeRgb[2]);
+            doc.rect(0, 0, pageWidth, 28, 'F');
+
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(14);
+            doc.text('LAPORAN PETTY CASH - KAS ' + activeMode.toUpperCase(), marginX, 12);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.text('Petty Cash Pro | Sistem Kas Operasional Distribusi & Manufaktur', marginX, 18.5);
+            doc.text('Dicetak: ' + printTime + ' WIB  |  Oleh: ' + printerName, marginX, 23.5);
+
+            doc.setFillColor(softBgRgb[0], softBgRgb[1], softBgRgb[2]);
+            doc.setDrawColor(215, 225, 240);
+            doc.roundedRect(marginX, 33, pageWidth - (marginX * 2), 25, 2.5, 2.5, 'FD');
+
+            doc.setTextColor(71, 85, 105);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Periode:', marginX + 4, 39.5);
+            doc.setFont('helvetica', 'normal');
+            doc.text(periodTitle + ' (' + periodSub + ')', marginX + 20, 39.5);
+
+            doc.setFont('helvetica', 'bold');
+            doc.text('Filter:', marginX + 4, 44.5);
+            doc.setFont('helvetica', 'normal');
+            doc.text(drvLabel + '  |  ' + katLabel + '  |  ' + statLabel, marginX + 20, 44.5);
+
+            doc.setDrawColor(203, 213, 225);
+            doc.line(marginX + 4, 48, pageWidth - marginX - 4, 48);
+
+            doc.setFontSize(8);
+            doc.setTextColor(30, 41, 59);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Total Nota: ' + data.length + ' Item', marginX + 4, 53.5);
+            doc.text('Total Pengeluaran: ' + formatRupiah(totAll), marginX + 46, 53.5);
+            doc.setTextColor(5, 150, 105);
+            doc.text('Approved: ' + formatRupiah(totApp), marginX + 106, 53.5);
+            doc.setTextColor(217, 119, 6);
+            doc.text('Pending: ' + formatRupiah(totPend), marginX + 150, 53.5);
+
+            doc.setTextColor(15, 23, 42);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text('1. Ringkasan Pengeluaran per Kategori', marginX, 66);
+
+            var catBody = agg.items.map(function(c, idx) {
+                return [
+                    String(idx + 1),
+                    c.kategori,
+                    c.count + ' Nota',
+                    formatRupiah(c.approvedTotal),
+                    formatRupiah(c.pendingTotal),
+                    formatRupiah(c.total),
+                    c.percent.toFixed(1) + '%'
+                ];
+            });
+
+            doc.autoTable({
+                startY: 69,
+                margin: { left: marginX, right: marginX },
+                head: [['No', 'Kategori', 'Jml Nota', 'Approved', 'Pending', 'Total Nominal', 'Porsi']],
+                body: catBody,
+                foot: [['', 'TOTAL KESELURUHAN', data.length + ' Nota', formatRupiah(totApp), formatRupiah(totPend), formatRupiah(totAll), '100.0%']],
+                theme: 'grid',
+                styles: {
+                    font: 'helvetica',
+                    fontSize: 8,
+                    cellPadding: 2.3,
+                    textColor: [30, 41, 59],
+                    lineColor: [226, 232, 240],
+                    lineWidth: 0.2
+                },
+                headStyles: {
+                    fillColor: themeRgb,
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold'
+                },
+                footStyles: {
+                    fillColor: [241, 245, 249],
+                    textColor: [15, 23, 42],
+                    fontStyle: 'bold'
+                },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 10 },
+                    2: { halign: 'center', cellWidth: 20 },
+                    3: { halign: 'right', cellWidth: 30 },
+                    4: { halign: 'right', cellWidth: 28 },
+                    5: { halign: 'right', cellWidth: 32, fontStyle: 'bold' },
+                    6: { halign: 'right', cellWidth: 16 }
+                }
+            });
+
+            var afterCatY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? (doc.lastAutoTable.finalY + 9) : 120;
+            if (afterCatY > 255) {
+                doc.addPage();
+                afterCatY = 18;
+            }
+
+            doc.setTextColor(15, 23, 42);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.text('2. Rincian Detail Transaksi Nota', marginX, afterCatY);
+
+            var detailBody = data.map(function(t, idx) {
+                var ketGabung = t.kategori + (t.keterangan ? (' - ' + t.keterangan) : '');
+                return [
+                    String(idx + 1),
+                    t.id_transaksi + '\n' + t.tanggal,
+                    t.nama_driver + '\n(' + t.role_user + ')',
+                    ketGabung,
+                    t.status,
+                    formatRupiah(t.nominal)
+                ];
+            });
+
+            doc.autoTable({
+                startY: afterCatY + 3,
+                margin: { left: marginX, right: marginX, bottom: 16 },
+                head: [['No', 'ID & Tanggal', 'User / Role', 'Kategori & Keterangan', 'Status', 'Nominal']],
+                body: detailBody,
+                foot: [['', '', '', '', 'TOTAL', formatRupiah(totAll)]],
+                theme: 'striped',
+                styles: {
+                    font: 'helvetica',
+                    fontSize: 7.8,
+                    cellPadding: 2.3,
+                    textColor: [30, 41, 59],
+                    valign: 'middle'
+                },
+                headStyles: {
+                    fillColor: [30, 41, 59],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold'
+                },
+                footStyles: {
+                    fillColor: softBgRgb,
+                    textColor: [15, 23, 42],
+                    fontStyle: 'bold'
+                },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 9 },
+                    1: { cellWidth: 28 },
+                    2: { cellWidth: 32 },
+                    4: { halign: 'center', cellWidth: 20, fontStyle: 'bold' },
+                    5: { halign: 'right', cellWidth: 28, fontStyle: 'bold' }
+                },
+                didParseCell: function(hookData) {
+                    if (hookData.section === 'body' && hookData.column.index === 4) {
+                        var st = String(hookData.cell.raw || '');
+                        if (st === 'Approved') hookData.cell.styles.textColor = [5, 150, 105];
+                        else if (st === 'Rejected') hookData.cell.styles.textColor = [225, 29, 72];
+                        else hookData.cell.styles.textColor = [217, 119, 6];
+                    }
+                }
+            });
+
+            var pageCount = doc.internal.getNumberOfPages();
+            var pageHeight = doc.internal.pageSize.getHeight();
+            for (var p = 1; p <= pageCount; p++) {
+                doc.setPage(p);
+                doc.setDrawColor(226, 232, 240);
+                doc.line(marginX, pageHeight - 11, pageWidth - marginX, pageHeight - 11);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7.5);
+                doc.setTextColor(100, 116, 139);
+                doc.text('Petty Cash Pro PWA - Dokumen Laporan Resmi', marginX, pageHeight - 6.5);
+                doc.text('Halaman ' + p + ' dari ' + pageCount, pageWidth - marginX, pageHeight - 6.5, { align: 'right' });
+            }
+
+            doc.save('Laporan_PettyCash_' + activeMode + '_' + getTodayLocalIso() + '.pdf');
+            showToast('File PDF berhasil diunduh!', 'success');
+        }
+
         // =========================================================================
-        // 14. PENGATURAN, MASTER KETERANGAN & CRUD AKUN (ADMIN)
+        // 14. PENGATURAN MASTER KETERANGAN & KELOLA AKUN USER (ADMIN)
         // =========================================================================
         function toggleAddSaldoVisibility() {
-            var roleSel = document.getElementById('addRole');
+            var roleEl = document.getElementById('addRole');
             var box = document.getElementById('addSaldoContainer');
-            if (!roleSel || !box) return;
-            box.style.display = (roleSel.value === 'Driver' || roleSel.value === 'Operasional') ? 'block' : 'none';
+            if (!roleEl || !box) return;
+            var r = String(roleEl.value || '');
+            if (r === 'Driver' || r === 'Operasional') {
+                box.classList.remove('hide');
+            } else {
+                box.classList.add('hide');
+            }
         }
 
         function renderPengaturan() {
@@ -3013,9 +3246,16 @@
                     var kh = '';
                     for (var i = 0; i < kats.length; i++) {
                         var k = kats[i];
+                        var isAktif = k.status === 'Aktif';
                         kh += '<div class="p-3 rounded-2xl bg-slate-50/80 border border-slate-100 flex items-center justify-between gap-2 text-xs">' +
-                            '<span class="font-bold text-slate-800">' + escapeHtml(k.nama_kategori) + '</span>' +
-                            '<button type="button" onclick="deleteKategoriItem(\'' + escapeAttr(k.id_kategori) + '\')" class="text-rose-600 hover:bg-rose-50 px-2.5 py-1 rounded-lg font-bold">Hapus</button>' +
+                            '<div class="flex items-center gap-2 min-w-0">' +
+                                '<span class="font-bold text-slate-800 truncate">' + escapeHtml(k.nama_kategori) + '</span>' +
+                                '<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md ' + (isAktif ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600') + '">' + escapeHtml(k.status) + '</span>' +
+                            '</div>' +
+                            '<div class="flex items-center gap-1.5 shrink-0">' +
+                                '<button type="button" onclick="toggleKategoriStatus(\'' + escapeAttr(k.id_kategori) + '\')" class="text-blue-600 hover:bg-blue-50 px-2.5 py-1 rounded-lg font-bold">' + (isAktif ? 'Nonaktifkan' : 'Aktifkan') + '</button>' +
+                                '<button type="button" onclick="deleteKategoriItem(\'' + escapeAttr(k.id_kategori) + '\')" class="text-rose-600 hover:bg-rose-50 px-2.5 py-1 rounded-lg font-bold">Hapus</button>' +
+                            '</div>' +
                         '</div>';
                     }
                     katEl.innerHTML = kh;
@@ -3058,6 +3298,25 @@
             })
             .then(function(res) {
                 inp.value = '';
+                return loadDashboardData(false).then(function() { return res; });
+            })
+            .then(function(res) {
+                hideLoading();
+                showToast(res.message, 'success');
+            })
+            .catch(function(err) {
+                hideLoading();
+                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
+            });
+        }
+
+        function toggleKategoriStatus(idKat) {
+            showLoading('Mengubah status keterangan...');
+            fetchAPI({
+                action: 'toggle_kategori',
+                id_kategori: idKat
+            })
+            .then(function(res) {
                 return loadDashboardData(false).then(function() { return res; });
             })
             .then(function(res) {
