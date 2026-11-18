@@ -56,14 +56,6 @@
 </head>
 <body class="text-slate-800 antialiased selection:bg-blue-100 selection:text-blue-700">
 
-    <!-- ==================== OVERLAY LOADING ==================== -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[999] flex flex-col items-center justify-center hide">
-        <div class="bg-white p-6 rounded-3xl shadow-2xl flex flex-col items-center max-w-xs mx-4">
-            <div class="w-11 h-11 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
-            <p id="loadingText" class="text-sm font-bold text-slate-700 text-center">Memproses data...</p>
-        </div>
-    </div>
-
     <!-- ==================== 1. HALAMAN LOGIN ==================== -->
     <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#eef4ff] via-[#f4f7fb] to-[#e6f0ff]">
         <div class="bg-white w-full max-w-md rounded-3xl shadow-xl shadow-blue-900/5 border border-slate-100 overflow-hidden">
@@ -927,6 +919,7 @@
         var deferredPrompt = null;
         var categoryPieChartInstance = null;
         var activePeriodPreset = 'THIS_MONTH';
+        var bgTaskCount = 0;
         var lastKnownCounts = {
             pendingTrx: 0,
             pendingTrxMfg: 0,
@@ -1023,26 +1016,58 @@
         // 2. HELPER UI & FORMATTER
         // =========================================================================
         function showLoading(text) {
-            var el = document.getElementById('loadingOverlay');
-            var txt = document.getElementById('loadingText');
-            if (txt) txt.textContent = text || 'Memproses data...';
-            if (el) el.classList.remove('hide');
+            startBackgroundTask(text || 'Data sedang diproses...');
         }
 
         function hideLoading() {
-            var el = document.getElementById('loadingOverlay');
-            if (el) el.classList.add('hide');
+            endBackgroundTask();
+        }
+
+        function startBackgroundTask(msg) {
+            bgTaskCount++;
+            var icon = document.querySelector('#btnManualRefresh i');
+            if (icon) icon.classList.add('animate-spin');
+            var syncLbl = document.getElementById('lastSyncLabel');
+            if (syncLbl) syncLbl.textContent = msg || 'Memproses di balik layar...';
+            showToast(msg || 'Data sedang diproses...', 'info');
+        }
+
+        function endBackgroundTask() {
+            bgTaskCount = Math.max(0, bgTaskCount - 1);
+            if (bgTaskCount === 0) {
+                var icon = document.querySelector('#btnManualRefresh i');
+                if (icon) icon.classList.remove('animate-spin');
+                var syncLbl = document.getElementById('lastSyncLabel');
+                if (syncLbl) {
+                    syncLbl.textContent = 'Sinkron: ' + ((dashboardData && dashboardData.server_time) || 'Aktif');
+                }
+            }
+        }
+
+        function refreshAfterMutation() {
+            if (!currentUser) return Promise.resolve();
+            if (isSyncing) {
+                return new Promise(function(resolve) {
+                    setTimeout(function() {
+                        resolve(refreshAfterMutation());
+                    }, 350);
+                });
+            }
+            return loadDashboardData(false);
         }
 
         function showToast(msg, icon) {
             Swal.fire({
                 toast: true,
-                position: 'top-end',
+                position: 'top',
                 icon: icon || 'info',
                 title: msg,
                 showConfirmButton: false,
                 timer: 3000,
-                timerProgressBar: true
+                timerProgressBar: true,
+                customClass: {
+                    popup: 'rounded-2xl shadow-lg text-xs font-bold'
+                }
             });
         }
 
@@ -1396,6 +1421,7 @@
         function handleLoginSubmit() {
             var uEl = document.getElementById('loginUsername');
             var pEl = document.getElementById('loginPassword');
+            var btnEl = document.getElementById('btnLoginSubmit');
             var username = uEl ? String(uEl.value || '').trim() : '';
             var password = pEl ? String(pEl.value || '').trim() : '';
 
@@ -1410,7 +1436,11 @@
                 return;
             }
 
-            showLoading('Memverifikasi akun...');
+            if (btnEl) {
+                btnEl.disabled = true;
+                btnEl.textContent = 'Memverifikasi akun...';
+            }
+            showToast('Memverifikasi akun...', 'info');
             fetchAPI({
                 action: 'login',
                 username: username,
@@ -1436,12 +1466,18 @@
                 return loadDashboardData(true);
             })
             .then(function() {
-                hideLoading();
+                if (btnEl) {
+                    btnEl.disabled = false;
+                    btnEl.textContent = 'Masuk ke Aplikasi';
+                }
                 startAutoSync();
                 showToast('Selamat datang, ' + currentUser.nama_lengkap + '!', 'success');
             })
             .catch(function(err) {
-                hideLoading();
+                if (btnEl) {
+                    btnEl.disabled = false;
+                    btnEl.textContent = 'Masuk ke Aplikasi';
+                }
                 Swal.fire({
                     icon: 'error',
                     title: 'Login Gagal',
@@ -1701,7 +1737,9 @@
                 renderPengaturan();
 
                 var syncLbl = document.getElementById('lastSyncLabel');
-                if (syncLbl) syncLbl.textContent = 'Sinkron: ' + (data.server_time || 'Aktif');
+                if (syncLbl && bgTaskCount === 0) {
+                    syncLbl.textContent = 'Sinkron: ' + (data.server_time || 'Aktif');
+                }
             })
             .catch(function(err) {
                 isSyncing = false;
@@ -2065,8 +2103,7 @@
                 return;
             }
 
-            showLoading('Mengirim nota & mengunggah bukti...');
-            fetchAPI({
+            var payload = {
                 action: 'submit_trx',
                 userId: currentUser.id_user,
                 divisi: activeMode,
@@ -2076,22 +2113,26 @@
                 nominal: nominal,
                 notaBase64: notaBase64Data,
                 notaMimeType: notaMimeTypeData
+            };
+
+            document.getElementById('inputKategoriManual').value = '';
+            document.getElementById('inputKeteranganManual').value = '';
+            document.getElementById('inputNominal').value = '';
+            setDefaultInputTanggalNota();
+            clearNotaPreview();
+            switchTab('dashboard');
+            startBackgroundTask('Data sedang diproses...');
+
+            fetchAPI(payload)
+            .then(function(res) {
+                return refreshAfterMutation().then(function() { return res; });
             })
             .then(function(res) {
-                document.getElementById('inputKategoriManual').value = '';
-                document.getElementById('inputKeteranganManual').value = '';
-                document.getElementById('inputNominal').value = '';
-                setDefaultInputTanggalNota();
-                clearNotaPreview();
-                return loadDashboardData(false).then(function() { return res; });
-            })
-            .then(function(res) {
-                hideLoading();
-                switchTab('dashboard');
-                Swal.fire({ icon: 'success', title: 'Berhasil', text: res.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
+                endBackgroundTask();
+                showToast(res.message || 'Nota berhasil diinput!', 'success');
             })
             .catch(function(err) {
-                hideLoading();
+                endBackgroundTask();
                 Swal.fire({ icon: 'error', title: 'Gagal Mengirim', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
@@ -2153,7 +2194,7 @@
                     customClass: { popup: 'rounded-3xl' }
                 }).then(function(res) {
                     if (!res.isConfirmed) return;
-                    showLoading('Memproses penerimaan saldo...');
+                    startBackgroundTask('Data sedang diproses...');
                     fetchAPI({
                         action: 'confirm_topup_driver',
                         id_kas: idKas,
@@ -2161,14 +2202,14 @@
                         keputusan: 'Accepted'
                     })
                     .then(function(data) {
-                        return loadDashboardData(false).then(function() { return data; });
+                        return refreshAfterMutation().then(function() { return data; });
                     })
                     .then(function(data) {
-                        hideLoading();
-                        Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
+                        endBackgroundTask();
+                        showToast(data.message || 'Saldo UM berhasil diterima!', 'success');
                     })
                     .catch(function(err) {
-                        hideLoading();
+                        endBackgroundTask();
                         Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                     });
                 });
@@ -2186,7 +2227,7 @@
                     customClass: { popup: 'rounded-3xl' }
                 }).then(function(res) {
                     if (!res.isConfirmed) return;
-                    showLoading('Mengembalikan saldo ke Kas Induk...');
+                    startBackgroundTask('Data sedang diproses...');
                     fetchAPI({
                         action: 'confirm_topup_driver',
                         id_kas: idKas,
@@ -2195,14 +2236,14 @@
                         alasan: res.value || 'Ditolak oleh penerima'
                     })
                     .then(function(data) {
-                        return loadDashboardData(false).then(function() { return data; });
+                        return refreshAfterMutation().then(function() { return data; });
                     })
                     .then(function(data) {
-                        hideLoading();
-                        Swal.fire({ icon: 'info', title: 'Top-Up Ditolak', text: data.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
+                        endBackgroundTask();
+                        showToast(data.message || 'Top-up berhasil ditolak.', 'success');
                     })
                     .catch(function(err) {
-                        hideLoading();
+                        endBackgroundTask();
                         Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                     });
                 });
@@ -2297,7 +2338,7 @@
         }
 
         function processApprovalTrx(idTrx, keputusan) {
-            showLoading('Memproses ' + keputusan + '...');
+            startBackgroundTask('Data sedang diproses...');
             fetchAPI({
                 action: 'approve_trx',
                 id_transaksi: idTrx,
@@ -2305,20 +2346,20 @@
                 pic_nama: currentUser.nama_lengkap
             })
             .then(function(res) {
-                return loadDashboardData(false).then(function() { return res; });
+                return refreshAfterMutation().then(function() { return res; });
             })
             .then(function(res) {
-                hideLoading();
+                endBackgroundTask();
                 showToast(res.message, 'success');
             })
             .catch(function(err) {
-                hideLoading();
+                endBackgroundTask();
                 Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
 
         function processApprovalRequest(idReq, keputusan) {
-            showLoading('Memproses pengajuan...');
+            startBackgroundTask('Data sedang diproses...');
             fetchAPI({
                 action: 'approve_request_perubahan',
                 id_request: idReq,
@@ -2326,14 +2367,14 @@
                 pic_nama: currentUser.nama_lengkap
             })
             .then(function(res) {
-                return loadDashboardData(false).then(function() { return res; });
+                return refreshAfterMutation().then(function() { return res; });
             })
             .then(function(res) {
-                hideLoading();
+                endBackgroundTask();
                 showToast(res.message, 'success');
             })
             .catch(function(err) {
-                hideLoading();
+                endBackgroundTask();
                 Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
@@ -2442,7 +2483,7 @@
                 }
             }).then(function(res) {
                 if (!res.isConfirmed) return;
-                showLoading('Menambahkan saldo Kas Induk...');
+                startBackgroundTask('Data sedang diproses...');
                 fetchAPI({
                     action: 'topup_kas_induk',
                     nominal: res.value.nominal,
@@ -2450,14 +2491,14 @@
                     pic_nama: currentUser.nama_lengkap
                 })
                 .then(function(data) {
-                    return loadDashboardData(false).then(function() { return data; });
+                    return refreshAfterMutation().then(function() { return data; });
                 })
                 .then(function(data) {
-                    hideLoading();
-                    Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
+                    endBackgroundTask();
+                    showToast(data.message || 'Top-up Kas Induk berhasil!', 'success');
                 })
                 .catch(function(err) {
-                    hideLoading();
+                    endBackgroundTask();
                     Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
@@ -2489,7 +2530,7 @@
                 }
             }).then(function(res) {
                 if (!res.isConfirmed) return;
-                showLoading('Menambahkan saldo Kas Manufaktur...');
+                startBackgroundTask('Data sedang diproses...');
                 fetchAPI({
                     action: 'topup_kas_manufaktur',
                     nominal: res.value.nominal,
@@ -2497,14 +2538,14 @@
                     pic_nama: currentUser.nama_lengkap
                 })
                 .then(function(data) {
-                    return loadDashboardData(false).then(function() { return data; });
+                    return refreshAfterMutation().then(function() { return data; });
                 })
                 .then(function(data) {
-                    hideLoading();
-                    Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, confirmButtonColor: '#0d9488', customClass: { popup: 'rounded-3xl' } });
+                    endBackgroundTask();
+                    showToast(data.message || 'Top-up Kas Manufaktur berhasil!', 'success');
                 })
                 .catch(function(err) {
-                    hideLoading();
+                    endBackgroundTask();
                     Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#0d9488', customClass: { popup: 'rounded-3xl' } });
                 });
             });
@@ -2550,7 +2591,7 @@
                 }
             }).then(function(res) {
                 if (!res.isConfirmed) return;
-                showLoading('Mengirim transfer UM...');
+                startBackgroundTask('Data sedang diproses...');
                 fetchAPI({
                     action: 'topup_driver',
                     driver_id: res.value.driver_id,
@@ -2559,14 +2600,14 @@
                     pic_nama: currentUser.nama_lengkap
                 })
                 .then(function(data) {
-                    return loadDashboardData(false).then(function() { return data; });
+                    return refreshAfterMutation().then(function() { return data; });
                 })
                 .then(function(data) {
-                    hideLoading();
-                    Swal.fire({ icon: 'success', title: 'Top-Up Terkirim', text: data.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
+                    endBackgroundTask();
+                    showToast(data.message || 'Transfer saldo UM berhasil dikirim!', 'success');
                 })
                 .catch(function(err) {
-                    hideLoading();
+                    endBackgroundTask();
                     Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
@@ -3311,60 +3352,60 @@
             var inp = document.getElementById('newKategoriInput');
             var val = inp ? String(inp.value || '').trim() : '';
             if (!val) return;
-            showLoading('Menambahkan pilihan keterangan...');
+            inp.value = '';
+            startBackgroundTask('Data sedang diproses...');
             fetchAPI({
                 action: 'add_kategori',
                 nama_kategori: val,
                 divisi: activeMode
             })
             .then(function(res) {
-                inp.value = '';
-                return loadDashboardData(false).then(function() { return res; });
+                return refreshAfterMutation().then(function() { return res; });
             })
             .then(function(res) {
-                hideLoading();
+                endBackgroundTask();
                 showToast(res.message, 'success');
             })
             .catch(function(err) {
-                hideLoading();
+                endBackgroundTask();
                 Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
 
         function toggleKategoriStatus(idKat) {
-            showLoading('Mengubah status keterangan...');
+            startBackgroundTask('Data sedang diproses...');
             fetchAPI({
                 action: 'toggle_kategori',
                 id_kategori: idKat
             })
             .then(function(res) {
-                return loadDashboardData(false).then(function() { return res; });
+                return refreshAfterMutation().then(function() { return res; });
             })
             .then(function(res) {
-                hideLoading();
+                endBackgroundTask();
                 showToast(res.message, 'success');
             })
             .catch(function(err) {
-                hideLoading();
+                endBackgroundTask();
                 Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
 
         function deleteKategoriItem(idKat) {
-            showLoading('Menghapus pilihan...');
+            startBackgroundTask('Data sedang diproses...');
             fetchAPI({
                 action: 'delete_kategori',
                 id_kategori: idKat
             })
             .then(function(res) {
-                return loadDashboardData(false).then(function() { return res; });
+                return refreshAfterMutation().then(function() { return res; });
             })
             .then(function(res) {
-                hideLoading();
+                endBackgroundTask();
                 showToast(res.message, 'success');
             })
             .catch(function(err) {
-                hideLoading();
+                endBackgroundTask();
                 Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
@@ -3381,7 +3422,13 @@
                 return;
             }
 
-            showLoading('Menyimpan akun baru...');
+            document.getElementById('addNamaLengkap').value = '';
+            document.getElementById('addUsername').value = '';
+            document.getElementById('addPassword').value = '';
+            document.getElementById('addSaldoUm').value = '';
+            toggleAddSaldoVisibility();
+            startBackgroundTask('Data sedang diproses...');
+
             fetchAPI({
                 action: 'add_user',
                 nama_lengkap: nama,
@@ -3391,19 +3438,14 @@
                 saldo_um: saldoUm
             })
             .then(function(res) {
-                document.getElementById('addNamaLengkap').value = '';
-                document.getElementById('addUsername').value = '';
-                document.getElementById('addPassword').value = '';
-                document.getElementById('addSaldoUm').value = '';
-                toggleAddSaldoVisibility();
-                return loadDashboardData(false).then(function() { return res; });
+                return refreshAfterMutation().then(function() { return res; });
             })
             .then(function(res) {
-                hideLoading();
-                Swal.fire({ icon: 'success', title: 'Berhasil', text: res.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
+                endBackgroundTask();
+                showToast(res.message || 'Akun baru berhasil disimpan!', 'success');
             })
             .catch(function(err) {
-                hideLoading();
+                endBackgroundTask();
                 Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
@@ -3453,7 +3495,7 @@
                 }
             }).then(function(res) {
                 if (!res.isConfirmed) return;
-                showLoading('Menyimpan perubahan akun...');
+                startBackgroundTask('Data sedang diproses...');
                 fetchAPI({
                     action: 'admin_edit_user',
                     id_user: res.value.id_user,
@@ -3465,14 +3507,14 @@
                     status: res.value.status
                 })
                 .then(function(data) {
-                    return loadDashboardData(false).then(function() { return data; });
+                    return refreshAfterMutation().then(function() { return data; });
                 })
                 .then(function(data) {
-                    hideLoading();
+                    endBackgroundTask();
                     showToast(data.message, 'success');
                 })
                 .catch(function(err) {
-                    hideLoading();
+                    endBackgroundTask();
                     Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
@@ -3491,20 +3533,20 @@
                 customClass: { popup: 'rounded-3xl' }
             }).then(function(res) {
                 if (!res.isConfirmed) return;
-                showLoading('Menghapus akun...');
+                startBackgroundTask('Data sedang diproses...');
                 fetchAPI({
                     action: 'admin_delete_user',
                     id_user: idUser
                 })
                 .then(function(data) {
-                    return loadDashboardData(false).then(function() { return data; });
+                    return refreshAfterMutation().then(function() { return data; });
                 })
                 .then(function(data) {
-                    hideLoading();
+                    endBackgroundTask();
                     showToast(data.message, 'success');
                 })
                 .catch(function(err) {
-                    hideLoading();
+                    endBackgroundTask();
                     Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
@@ -3606,7 +3648,7 @@
                 }
             }).then(function(res) {
                 if (!res.isConfirmed) return;
-                showLoading(res.value.notaBase64 ? 'Mengunggah foto & menyimpan perubahan...' : 'Menyimpan perubahan transaksi...');
+                startBackgroundTask('Data sedang diproses...');
                 fetchAPI({
                     action: 'admin_edit_trx',
                     id_transaksi: trx.id_transaksi,
@@ -3619,14 +3661,14 @@
                     pic_nama: currentUser.nama_lengkap
                 })
                 .then(function(data) {
-                    return loadDashboardData(false).then(function() { return data; });
+                    return refreshAfterMutation().then(function() { return data; });
                 })
                 .then(function(data) {
-                    hideLoading();
+                    endBackgroundTask();
                     showToast(data.message, 'success');
                 })
                 .catch(function(err) {
-                    hideLoading();
+                    endBackgroundTask();
                     Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
@@ -3645,21 +3687,21 @@
                 customClass: { popup: 'rounded-3xl' }
             }).then(function(res) {
                 if (!res.isConfirmed) return;
-                showLoading('Menghapus transaksi...');
+                startBackgroundTask('Data sedang diproses...');
                 fetchAPI({
                     action: 'admin_delete_trx',
                     id_transaksi: idTrx,
                     pic_nama: currentUser.nama_lengkap
                 })
                 .then(function(data) {
-                    return loadDashboardData(false).then(function() { return data; });
+                    return refreshAfterMutation().then(function() { return data; });
                 })
                 .then(function(data) {
-                    hideLoading();
+                    endBackgroundTask();
                     showToast(data.message, 'success');
                 })
                 .catch(function(err) {
-                    hideLoading();
+                    endBackgroundTask();
                     Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
@@ -3760,7 +3802,7 @@
                 }
             }).then(function(res) {
                 if (!res.isConfirmed) return;
-                showLoading(res.value.notaBase64 ? 'Mengunggah foto & mengirim pengajuan...' : 'Mengirim pengajuan ke Admin...');
+                startBackgroundTask('Data sedang diproses...');
                 fetchAPI({
                     action: 'submit_request_perubahan',
                     id_transaksi: trx.id_transaksi,
@@ -3772,14 +3814,14 @@
                     data_baru: res.value.data_baru
                 })
                 .then(function(data) {
-                    return loadDashboardData(false).then(function() { return data; });
+                    return refreshAfterMutation().then(function() { return data; });
                 })
                 .then(function(data) {
-                    hideLoading();
-                    Swal.fire({ icon: 'success', title: 'Terkirim', text: data.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
+                    endBackgroundTask();
+                    showToast(data.message || 'Pengajuan perubahan berhasil dikirim!', 'success');
                 })
                 .catch(function(err) {
-                    hideLoading();
+                    endBackgroundTask();
                     Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
