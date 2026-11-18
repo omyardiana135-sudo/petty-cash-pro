@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#4f46e5">
+    <meta name="theme-color" content="#2563eb">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Petty Cash Pro">
@@ -18,6 +18,8 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- SheetJS (Export Excel .xlsx) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Chart.js (Grafik Pie Analitik Kategori) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -25,12 +27,23 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #f8fafc;
+            background-color: #f4f7fb;
             -webkit-tap-highlight-color: transparent;
         }
         .hide { display: none !important; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .kasly-header-gradient {
+            background: linear-gradient(135deg, #1d5ce8 0%, #3b82f6 100%);
+        }
+        .kasly-mfg-gradient {
+            background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+        }
+        .kasly-card {
+            background-color: #ffffff;
+            border: 1px solid #eef2f7;
+            box-shadow: 0 2px 12px rgba(15, 23, 42, 0.035);
+        }
         @keyframes spinFast {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -38,33 +51,33 @@
         .spin-once { animation: spinFast 0.65s ease-in-out; }
     </style>
 </head>
-<body class="text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-700">
+<body class="text-slate-800 antialiased selection:bg-blue-100 selection:text-blue-700">
 
     <!-- ==================== OVERLAY LOADING ==================== -->
-    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/45 backdrop-blur-xs z-[999] flex flex-col items-center justify-center hide">
+    <div id="loadingOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-[999] flex flex-col items-center justify-center hide">
         <div class="bg-white p-6 rounded-3xl shadow-2xl flex flex-col items-center max-w-xs mx-4">
-            <div class="w-11 h-11 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+            <div class="w-11 h-11 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
             <p id="loadingText" class="text-sm font-bold text-slate-700 text-center">Memproses data...</p>
         </div>
     </div>
 
     <!-- ==================== 1. HALAMAN LOGIN ==================== -->
-    <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-100 via-indigo-50/40 to-slate-100">
-        <div class="bg-white w-full max-w-md rounded-3xl shadow-xl shadow-slate-200/70 border border-slate-100 p-7 sm:p-8">
-            <div class="text-center mb-7">
-                <div class="w-14 h-14 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center text-white text-3xl shadow-lg shadow-indigo-200 mb-3">
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#eef4ff] via-[#f4f7fb] to-[#e6f0ff]">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-xl shadow-blue-900/5 border border-slate-100 overflow-hidden">
+            <div class="kasly-header-gradient px-7 py-7 text-center text-white">
+                <div class="w-14 h-14 bg-white/20 backdrop-blur-xs rounded-2xl mx-auto flex items-center justify-center text-white text-3xl mb-3 border border-white/25">
                     <i class="ph-fill ph-wallet"></i>
                 </div>
-                <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Petty Cash Pro</h1>
-                <p class="text-xs text-slate-500 font-medium mt-1">Sistem Kas Operasional Distribusi &amp; Manufaktur</p>
+                <h1 class="text-2xl font-extrabold tracking-tight">Petty Cash Pro</h1>
+                <p class="text-xs text-blue-100 font-medium mt-1">Sistem Kas Operasional Distribusi &amp; Manufaktur</p>
             </div>
 
-            <div class="space-y-4">
+            <div class="p-7 sm:p-8 space-y-4">
                 <div>
                     <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Username</label>
                     <div class="relative">
                         <i class="ph ph-user absolute left-3.5 top-3 text-slate-400 text-lg"></i>
-                        <input type="text" id="loginUsername" autocomplete="username" onkeydown="if(event.key==='Enter') handleLoginSubmit()" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm font-medium transition-all" placeholder="Masukkan username">
+                        <input type="text" id="loginUsername" autocomplete="username" onkeydown="if(event.key==='Enter') handleLoginSubmit()" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-medium transition-all" placeholder="Masukkan username">
                     </div>
                 </div>
 
@@ -72,17 +85,17 @@
                     <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Password</label>
                     <div class="relative">
                         <i class="ph ph-lock-simple absolute left-3.5 top-3 text-slate-400 text-lg"></i>
-                        <input type="password" id="loginPassword" autocomplete="current-password" onkeydown="if(event.key==='Enter') handleLoginSubmit()" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm font-medium transition-all" placeholder="••••••••">
+                        <input type="password" id="loginPassword" autocomplete="current-password" onkeydown="if(event.key==='Enter') handleLoginSubmit()" class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none text-sm font-medium transition-all" placeholder="••••••••">
                     </div>
                 </div>
 
-                <button type="button" id="btnLoginSubmit" onclick="handleLoginSubmit()" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold py-3 rounded-xl shadow-md shadow-indigo-200 transition-all text-sm">
+                <button type="button" id="btnLoginSubmit" onclick="handleLoginSubmit()" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold py-3 rounded-xl shadow-md shadow-blue-200 transition-all text-sm">
                     Masuk ke Aplikasi
                 </button>
 
                 <div id="serverConfigBar" class="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
                     <span id="serverStatusText" class="text-slate-400 font-medium">Server: Belum diatur</span>
-                    <button type="button" onclick="openGasUrlSettingModal()" class="text-indigo-600 hover:underline font-bold">
+                    <button type="button" onclick="openGasUrlSettingModal()" class="text-blue-600 hover:underline font-bold">
                         Atur URL Server GAS
                     </button>
                 </div>
@@ -94,14 +107,14 @@
     <div id="appScreen" class="hide min-h-screen flex flex-col md:flex-row">
 
         <!-- SIDEBAR DESKTOP -->
-        <aside class="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-slate-200/80 z-30">
+        <aside class="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-slate-200/70 z-30">
             <div class="p-6 border-b border-slate-100 flex items-center gap-3">
-                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-xl shadow-md shadow-indigo-200">
+                <div class="w-10 h-10 kasly-header-gradient rounded-xl flex items-center justify-center text-white text-xl shadow-md shadow-blue-200">
                     <i class="ph-fill ph-wallet"></i>
                 </div>
                 <div>
                     <h2 class="font-extrabold text-slate-900 text-base leading-tight">Petty Cash Pro</h2>
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">Dual-Mode PWA</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">Dual-Mode PWA</span>
                 </div>
             </div>
 
@@ -129,7 +142,7 @@
                 </button>
 
                 <button type="button" data-nav="laporan" onclick="switchTab('laporan')" class="admin-only hide nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                    <span class="flex items-center gap-3"><i class="ph ph-file-xls text-lg"></i> Laporan &amp; Excel</span>
+                    <span class="flex items-center gap-3"><i class="ph ph-chart-pie-slice text-lg"></i> Laporan &amp; Grafik</span>
                 </button>
 
                 <button type="button" data-nav="pengaturan" onclick="switchTab('pengaturan')" class="nav-btn w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
@@ -148,131 +161,141 @@
         <div class="flex-1 md:pl-64 pb-24 md:pb-10">
             <div class="max-w-4xl mx-auto p-4 md:p-6 space-y-5">
 
-                <!-- TOP HEADER & STATUS SINKRONISASI -->
-                <header class="bg-white rounded-3xl p-4 md:p-5 shadow-xs border border-slate-100">
-                    <div class="flex items-center justify-between gap-3">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center font-extrabold text-lg shrink-0 shadow-sm">
-                                <i class="ph-fill ph-user-circle text-2xl"></i>
-                            </div>
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-2">
-                                    <h1 id="headerUserName" class="font-extrabold text-slate-900 text-sm md:text-base truncate">User</h1>
-                                    <span id="headerUserRole" class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 shrink-0">Role</span>
+                <!-- TOP HEADER ROYAL BLUE (INSPIRED BY KASLY CLEAN UI) -->
+                <header class="kasly-card rounded-3xl overflow-hidden">
+                    <div id="topBlueBanner" class="kasly-header-gradient p-4 md:p-5 text-white">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-xs border border-white/25 text-white flex items-center justify-center font-extrabold text-lg shrink-0">
+                                    <i class="ph-fill ph-user-circle text-2xl"></i>
                                 </div>
-                                <p class="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                                    <span id="lastSyncLabel">Sinkronisasi aktif</span>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <h1 id="headerUserName" class="font-extrabold text-white text-sm md:text-base truncate">User</h1>
+                                        <span id="headerUserRole" class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-white/20 text-white border border-white/20 shrink-0">Role</span>
+                                    </div>
+                                    <p class="text-[11px] text-blue-100 flex items-center gap-1.5 mt-0.5">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-300 inline-block"></span>
+                                        <span id="lastSyncLabel">Sinkronisasi aktif</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Tombol Notifikasi HP & Refresh -->
+                            <div class="flex items-center gap-2 shrink-0">
+                                <button type="button" id="btnNotifBell" onclick="requestDeviceNotificationPermission()" title="Notifikasi HP" class="relative w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors border border-white/15">
+                                    <i class="ph ph-bell text-lg"></i>
+                                    <span id="notifBellDot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-300"></span>
+                                </button>
+                                <button type="button" id="btnManualRefresh" onclick="manualRefreshData()" title="Refresh Data" class="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-colors border border-white/15">
+                                    <i class="ph ph-arrows-clockwise text-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Switcher Mode (Khusus Admin / Finance) -->
+                        <div id="adminModeSwitcher" class="admin-only hide mt-4 bg-black/15 backdrop-blur-xs p-1 rounded-2xl grid grid-cols-2 gap-1 border border-white/15">
+                            <button type="button" id="btnModeDistribusi" onclick="switchAppMode('Distribusi')" class="py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-white text-blue-600 shadow-xs">
+                                <i class="ph-fill ph-truck text-base"></i> Mode Kas Distribusi
+                            </button>
+                            <button type="button" id="btnModeManufaktur" onclick="switchAppMode('Manufaktur')" class="py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-white/85 hover:text-white">
+                                <i class="ph-fill ph-factory text-base"></i> Mode Kas Manufaktur
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Area Kartu Saldo Pastel Bersih di Bawah Header -->
+                    <div class="p-4 bg-white">
+                        <!-- Mode Driver & Operasional (Distribusi) -->
+                        <div id="driverSaldoCard" class="driver-only hide bg-[#eef4ff] border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-3">
+                            <div>
+                                <p class="text-[11px] font-bold text-blue-600 flex items-center gap-1.5">
+                                    <i class="ph-fill ph-wallet text-sm"></i> Sisa Saldo Uang Muka (UM)
                                 </p>
+                                <p id="headerSaldoDriver" class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-0.5">Rp 0</p>
                             </div>
-                        </div>
-
-                        <!-- Tombol Notifikasi HP & Refresh Kecil -->
-                        <div class="flex items-center gap-2 shrink-0">
-                            <button type="button" id="btnNotifBell" onclick="requestDeviceNotificationPermission()" title="Notifikasi HP" class="relative w-9 h-9 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 flex items-center justify-center transition-colors">
-                                <i class="ph ph-bell text-lg"></i>
-                                <span id="notifBellDot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500"></span>
-                            </button>
-                            <button type="button" id="btnManualRefresh" onclick="manualRefreshData()" title="Refresh Data" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 flex items-center justify-center transition-colors">
-                                <i class="ph ph-arrows-clockwise text-lg"></i>
+                            <button type="button" onclick="switchTab('input')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm shadow-blue-200 transition-all shrink-0">
+                                <i class="ph ph-plus-circle text-base"></i> Input Nota
                             </button>
                         </div>
-                    </div>
 
-                    <!-- Switcher Mode (Khusus Admin / Finance) -->
-                    <div id="adminModeSwitcher" class="admin-only hide mt-3.5 bg-slate-100 p-1 rounded-2xl grid grid-cols-2 gap-1">
-                        <button type="button" id="btnModeDistribusi" onclick="switchAppMode('Distribusi')" class="py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-white text-indigo-600 shadow-xs">
-                            <i class="ph-fill ph-truck text-base"></i> Mode Kas Distribusi
-                        </button>
-                        <button type="button" id="btnModeManufaktur" onclick="switchAppMode('Manufaktur')" class="py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-800">
-                            <i class="ph-fill ph-factory text-base"></i> Mode Kas Manufaktur
-                        </button>
-                    </div>
+                        <!-- Mode Staf Manufaktur (Direct Pool Pabrik) -->
+                        <div id="mfgUserSaldoCard" class="mfg-only hide bg-[#eafbf1] border border-emerald-100 rounded-2xl p-4 flex items-center justify-between gap-3">
+                            <div>
+                                <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-teal-600 text-white">Kas Manufaktur</span>
+                                <p class="text-[11px] font-bold text-teal-700 mt-1">Sisa Saldo Kas Pabrik Tersedia</p>
+                                <p id="headerSaldoMfgUser" class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-0.5">Rp 0</p>
+                            </div>
+                            <button type="button" onclick="switchTab('input')" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm shadow-teal-200 transition-all shrink-0">
+                                <i class="ph ph-plus-circle text-base"></i> Input Nota Pabrik
+                            </button>
+                        </div>
 
-                    <!-- Mode Driver & Operasional (Distribusi) -->
-                    <div id="driverSaldoCard" class="driver-only hide mt-4 bg-gradient-to-r from-indigo-600 via-indigo-600 to-violet-600 rounded-2xl p-4 text-white flex items-center justify-between shadow-md shadow-indigo-200/60">
-                        <div>
-                            <p class="text-[11px] font-medium text-indigo-100">Sisa Saldo Uang Muka (UM) Anda</p>
-                            <p id="headerSaldoDriver" class="text-2xl md:text-3xl font-extrabold tracking-tight mt-0.5">Rp 0</p>
+                        <!-- Mode Admin: Distribusi (Pastel Cards ala Screenshot) -->
+                        <div id="adminSaldoGrid" class="admin-dist-only hide grid grid-cols-2 gap-3">
+                            <div class="bg-[#eef4ff] border border-blue-100/90 rounded-2xl p-3.5 md:p-4 cursor-pointer hover:bg-blue-100/50 transition-colors" onclick="switchTab('kasinduk')">
+                                <div class="flex items-center gap-1.5 text-blue-600">
+                                    <span class="w-6 h-6 rounded-lg bg-blue-600/10 flex items-center justify-center"><i class="ph-fill ph-bank text-sm"></i></span>
+                                    <p class="text-[11px] font-bold">Saldo Kas Distribusi</p>
+                                </div>
+                                <p id="headerSaldoKasInduk" class="text-lg md:text-2xl font-extrabold text-slate-900 mt-2 truncate">Rp 0</p>
+                            </div>
+                            <div class="bg-[#eafbf1] border border-emerald-100/90 rounded-2xl p-3.5 md:p-4 cursor-pointer hover:bg-emerald-100/50 transition-colors" onclick="switchTab('kasinduk')">
+                                <div class="flex items-center gap-1.5 text-emerald-600">
+                                    <span class="w-6 h-6 rounded-lg bg-emerald-600/10 flex items-center justify-center"><i class="ph-fill ph-users-three text-sm"></i></span>
+                                    <p class="text-[11px] font-bold">Total UM Driver &amp; Ops</p>
+                                </div>
+                                <p id="headerTotalDriver" class="text-lg md:text-2xl font-extrabold text-slate-900 mt-2 truncate">Rp 0</p>
+                            </div>
                         </div>
-                        <button type="button" onclick="switchTab('input')" class="bg-white/20 hover:bg-white/30 backdrop-blur-xs text-white text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all">
-                            <i class="ph ph-plus-circle text-base"></i> Input Nota
-                        </button>
-                    </div>
 
-                    <!-- Mode Staf Manufaktur (Direct Pool Pabrik) -->
-                    <div id="mfgUserSaldoCard" class="mfg-only hide mt-4 bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 rounded-2xl p-4 text-white flex items-center justify-between shadow-md shadow-teal-200/60">
-                        <div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-white/20 text-white">Kas Manufaktur</span>
+                        <!-- Mode Admin: Manufaktur (Pastel Cards ala Screenshot) -->
+                        <div id="adminMfgSaldoGrid" class="admin-mfg-only hide grid grid-cols-2 gap-3">
+                            <div class="bg-[#eafbf1] border border-emerald-100/90 rounded-2xl p-3.5 md:p-4 cursor-pointer hover:bg-emerald-100/50 transition-colors" onclick="switchTab('kasinduk')">
+                                <div class="flex items-center gap-1.5 text-teal-700">
+                                    <span class="w-6 h-6 rounded-lg bg-teal-600/10 flex items-center justify-center"><i class="ph-fill ph-factory text-sm"></i></span>
+                                    <p class="text-[11px] font-bold">Saldo Kas Manufaktur</p>
+                                </div>
+                                <p id="headerSaldoKasManufaktur" class="text-lg md:text-2xl font-extrabold text-slate-900 mt-2 truncate">Rp 0</p>
                             </div>
-                            <p class="text-[11px] font-medium text-teal-100 mt-1">Sisa Saldo Kas Pabrik Tersedia</p>
-                            <p id="headerSaldoMfgUser" class="text-2xl md:text-3xl font-extrabold tracking-tight mt-0.5">Rp 0</p>
-                        </div>
-                        <button type="button" onclick="switchTab('input')" class="bg-white/20 hover:bg-white/30 backdrop-blur-xs text-white text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-all shrink-0">
-                            <i class="ph ph-plus-circle text-base"></i> Input Nota Pabrik
-                        </button>
-                    </div>
-
-                    <!-- Mode Admin: Distribusi -->
-                    <div id="adminSaldoGrid" class="admin-dist-only hide mt-4 grid grid-cols-2 gap-3">
-                        <div class="bg-slate-900 rounded-2xl p-3.5 md:p-4 text-white cursor-pointer hover:bg-slate-800 transition-colors" onclick="switchTab('kasinduk')">
-                            <div class="flex justify-between items-center">
-                                <p class="text-[11px] text-slate-400 font-semibold">Saldo Kas Distribusi</p>
-                                <i class="ph ph-bank text-emerald-400 text-base"></i>
+                            <div class="bg-[#fef5e7] border border-amber-100/90 rounded-2xl p-3.5 md:p-4 cursor-pointer hover:bg-amber-100/50 transition-colors" onclick="switchTab('laporan')">
+                                <div class="flex items-center gap-1.5 text-amber-600">
+                                    <span class="w-6 h-6 rounded-lg bg-amber-600/10 flex items-center justify-center"><i class="ph-fill ph-chart-pie-slice text-sm"></i></span>
+                                    <p class="text-[11px] font-bold">Belanja Pabrik (Approved)</p>
+                                </div>
+                                <p id="headerTotalMfgExpense" class="text-lg md:text-2xl font-extrabold text-slate-900 mt-2 truncate">Rp 0</p>
                             </div>
-                            <p id="headerSaldoKasInduk" class="text-lg md:text-2xl font-extrabold text-emerald-400 mt-1 truncate">Rp 0</p>
-                        </div>
-                        <div class="bg-indigo-50/80 border border-indigo-100 rounded-2xl p-3.5 md:p-4 text-slate-800 cursor-pointer hover:bg-indigo-100/60 transition-colors" onclick="switchTab('kasinduk')">
-                            <div class="flex justify-between items-center">
-                                <p class="text-[11px] text-indigo-600 font-semibold">Total UM Driver &amp; Ops</p>
-                                <i class="ph ph-users-three text-indigo-500 text-base"></i>
-                            </div>
-                            <p id="headerTotalDriver" class="text-lg md:text-2xl font-extrabold text-indigo-900 mt-1 truncate">Rp 0</p>
-                        </div>
-                    </div>
-
-                    <!-- Mode Admin: Manufaktur -->
-                    <div id="adminMfgSaldoGrid" class="admin-mfg-only hide mt-4 grid grid-cols-2 gap-3">
-                        <div class="bg-gradient-to-r from-teal-900 to-emerald-950 rounded-2xl p-3.5 md:p-4 text-white cursor-pointer hover:opacity-95 transition-opacity" onclick="switchTab('kasinduk')">
-                            <div class="flex justify-between items-center">
-                                <p class="text-[11px] text-teal-200 font-semibold">Saldo Kas Manufaktur</p>
-                                <i class="ph-fill ph-factory text-emerald-400 text-base"></i>
-                            </div>
-                            <p id="headerSaldoKasManufaktur" class="text-lg md:text-2xl font-extrabold text-emerald-400 mt-1 truncate">Rp 0</p>
-                        </div>
-                        <div class="bg-teal-50/90 border border-teal-100 rounded-2xl p-3.5 md:p-4 text-slate-800 cursor-pointer hover:bg-teal-100/60 transition-colors" onclick="switchTab('input')">
-                            <div class="flex justify-between items-center">
-                                <p class="text-[11px] text-teal-700 font-semibold">Belanja Pabrik (Approved)</p>
-                                <i class="ph ph-receipt text-teal-600 text-base"></i>
-                            </div>
-                            <p id="headerTotalMfgExpense" class="text-lg md:text-2xl font-extrabold text-teal-950 mt-1 truncate">Rp 0</p>
                         </div>
                     </div>
                 </header>
 
                 <!-- ==================== TAB 1: BERANDA / RIWAYAT TRANSAKSI ==================== -->
                 <section id="tab-dashboard" class="tab-section space-y-4">
-                    <div class="bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-3">
+                    <div class="kasly-card p-4 rounded-3xl space-y-3">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
                                 <h3 id="historyTitle" class="font-extrabold text-slate-900 text-base">Catatan Transaksi</h3>
                                 <p id="historySubtitle" class="text-xs text-slate-500">Riwayat pengajuan nota &amp; status persetujuan</p>
                             </div>
-                            <button type="button" onclick="shortcutToMasterKeterangan()" class="admin-only hide inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl transition-colors">
-                                <i class="ph-fill ph-list-checks text-sm"></i> Kelola Pilihan Keterangan
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="switchTab('laporan')" class="admin-only hide inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-full transition-colors">
+                                    <i class="ph-fill ph-chart-pie-slice text-sm"></i> Laporan Kategori
+                                </button>
+                                <button type="button" onclick="shortcutToMasterKeterangan()" class="admin-only hide inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-colors">
+                                    <i class="ph-fill ph-list-checks text-sm"></i> Master Keterangan
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Filter Bar -->
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                             <div class="admin-only hide">
-                                <select id="adminHomeDriverFilter" onchange="renderDashboardUI()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50 outline-none focus:border-indigo-500">
+                                <select id="adminHomeDriverFilter" onchange="renderDashboardUI()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50/70 outline-none focus:border-blue-600">
                                     <option value="ALL">Semua Kas Driver &amp; Operasional</option>
                                 </select>
                             </div>
                             <div>
-                                <select id="homeStatusFilter" onchange="renderDashboardUI()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50 outline-none focus:border-indigo-500">
+                                <select id="homeStatusFilter" onchange="renderDashboardUI()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50/70 outline-none focus:border-blue-600">
                                     <option value="ALL">Semua Status</option>
                                     <option value="Pending">Menunggu Approval</option>
                                     <option value="Approved">Disetujui (Approved)</option>
@@ -280,17 +303,17 @@
                                 </select>
                             </div>
                             <div class="relative">
-                                <i class="ph ph-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
-                                <input type="text" id="homeSearchInput" oninput="renderDashboardUI()" placeholder="Cari keterangan / ID..." class="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 outline-none focus:border-indigo-500">
+                                <i class="ph ph-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                                <input type="text" id="homeSearchInput" oninput="renderDashboardUI()" placeholder="Cari keterangan / #TRX..." class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs bg-slate-50/70 outline-none focus:border-blue-600">
                             </div>
                         </div>
                     </div>
 
                     <!-- Daftar Riwayat Pengajuan Edit/Hapus milik Staf Lapangan -->
-                    <div id="driverMyRequestsCard" class="field-user-only hide bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-2.5">
+                    <div id="driverMyRequestsCard" class="field-user-only hide kasly-card p-4 rounded-3xl space-y-2.5">
                         <div class="flex items-center justify-between">
                             <h4 class="font-bold text-xs uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                                <i class="ph ph-clock-counter-clockwise text-indigo-600 text-base"></i> Status Pengajuan Edit / Hapus Anda
+                                <i class="ph ph-clock-counter-clockwise text-blue-600 text-base"></i> Status Pengajuan Edit / Hapus Anda
                             </h4>
                         </div>
                         <div id="listDriverRequestsStatus" class="space-y-2"></div>
@@ -302,10 +325,10 @@
 
                 <!-- ==================== TAB 2: INPUT NOTA ==================== -->
                 <section id="tab-input" class="tab-section hide">
-                    <div class="bg-white p-5 md:p-6 rounded-3xl shadow-xs border border-slate-100 space-y-5">
+                    <div class="kasly-card p-5 md:p-6 rounded-3xl space-y-5">
                         <div>
                             <h3 id="inputNotaFormTitle" class="font-extrabold text-lg text-slate-900 flex items-center gap-2">
-                                <i class="ph-fill ph-receipt text-indigo-600 text-xl"></i> Input Nota Pengeluaran
+                                <i class="ph-fill ph-receipt text-blue-600 text-xl"></i> Input Nota Pengeluaran
                             </h3>
                             <p id="inputNotaFormSubtitle" class="text-xs text-slate-500 mt-0.5">Pilih keterangan cepat atau tulis manual, lalu lampirkan foto bukti nota</p>
                         </div>
@@ -315,11 +338,11 @@
                             <div>
                                 <div class="flex items-center justify-between mb-1.5">
                                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Pilihan Keterangan / Kategori</label>
-                                    <button type="button" onclick="shortcutToMasterKeterangan()" class="admin-only hide text-[11px] font-bold text-indigo-600 hover:underline">
+                                    <button type="button" onclick="shortcutToMasterKeterangan()" class="admin-only hide text-[11px] font-bold text-blue-600 hover:underline">
                                         + Kelola Daftar Pilihan
                                     </button>
                                 </div>
-                                <select id="inputKategoriSelect" onchange="handleKategoriChange()" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-semibold text-slate-800">
+                                <select id="inputKategoriSelect" onchange="handleKategoriChange()" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-600 outline-none bg-white text-sm font-semibold text-slate-800">
                                     <option value="__MANUAL__">-- Ketik Kategori / Keterangan Manual --</option>
                                 </select>
                             </div>
@@ -327,27 +350,27 @@
                             <!-- Input Manual Kategori jika memilih manual -->
                             <div id="inputKategoriManualBox">
                                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Judul Kategori Manual</label>
-                                <input type="text" id="inputKategoriManual" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Contoh: Tambal Ban / Parkir Gudang">
+                                <input type="text" id="inputKategoriManual" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-600 outline-none text-sm" placeholder="Contoh: Parkir / Tambal Ban / Parkir Gudang">
                             </div>
 
                             <!-- Detail Keterangan Tambahan (Opsional/Manual) -->
                             <div>
                                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Detail Keterangan Tambahan (Opsional)</label>
-                                <input type="text" id="inputKeteranganManual" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Contoh: Plat B 1234 XYZ, SPBU Pertamina KM 19">
+                                <input type="text" id="inputKeteranganManual" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-600 outline-none text-sm" placeholder="Contoh: Plat B 1234 XYZ, SPBU Pertamina KM 19">
                             </div>
 
                             <!-- Tanggal Nota & Nominal Pengeluaran -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Tanggal Nota / Transaksi</label>
-                                    <input type="date" id="inputTanggalNota" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-bold text-slate-800">
+                                    <input type="date" id="inputTanggalNota" class="w-full px-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-600 outline-none bg-white text-sm font-bold text-slate-800">
                                 </div>
 
                                 <div>
                                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Nominal Pengeluaran (Rp)</label>
                                     <div class="relative">
                                         <span class="absolute left-3.5 top-3 text-sm font-extrabold text-slate-400 select-none">Rp</span>
-                                        <input type="text" id="inputNominal" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" class="w-full pl-11 pr-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-base font-extrabold text-slate-900" placeholder="0">
+                                        <input type="text" id="inputNominal" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" class="w-full pl-11 pr-3.5 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-600 outline-none text-base font-extrabold text-slate-900" placeholder="0">
                                     </div>
                                 </div>
                             </div>
@@ -355,8 +378,8 @@
                             <!-- Upload / Kamera Foto Nota -->
                             <div>
                                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Foto Bukti Nota / Struk</label>
-                                <label for="inputFotoNota" class="flex flex-col items-center justify-center w-full p-5 border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-2xl bg-slate-50/70 hover:bg-indigo-50/30 cursor-pointer transition-all">
-                                    <i class="ph ph-camera text-3xl text-indigo-600 mb-1.5"></i>
+                                <label for="inputFotoNota" class="flex flex-col items-center justify-center w-full p-5 border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-2xl bg-slate-50/70 hover:bg-blue-50/40 cursor-pointer transition-all">
+                                    <i class="ph ph-camera text-3xl text-blue-600 mb-1.5"></i>
                                     <span class="text-xs font-bold text-slate-700">Tap untuk Ambil Foto / Pilih Galeri</span>
                                     <span class="text-[11px] text-slate-400 mt-0.5">Otomatis dikompresi agar upload cepat</span>
                                     <input type="file" id="inputFotoNota" accept="image/*" capture="environment" onchange="handleNotaFileSelect(this)" class="hidden">
@@ -371,7 +394,7 @@
                                 </div>
                             </div>
 
-                            <button type="button" id="btnSubmitNota" onclick="submitNotaForm()" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-indigo-200 transition-all text-sm flex items-center justify-center gap-2">
+                            <button type="button" id="btnSubmitNota" onclick="submitNotaForm()" class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-blue-200 transition-all text-sm flex items-center justify-center gap-2">
                                 <i class="ph ph-paper-plane-tilt text-lg"></i> Kirim Laporan Nota
                             </button>
                         </div>
@@ -380,7 +403,7 @@
 
                 <!-- ==================== TAB 3: RIWAYAT & KONFIRMASI UM MASUK (DRIVER / OPS) ==================== -->
                 <section id="tab-topup-driver" class="tab-section hide space-y-4">
-                    <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100">
+                    <div class="kasly-card p-5 rounded-3xl">
                         <h3 class="font-extrabold text-base text-slate-900">Konfirmasi &amp; Riwayat Saldo UM Masuk</h3>
                         <p class="text-xs text-slate-500 mt-0.5">Konfirmasi Terima atau Tolak jika ada dana top-up dari Admin</p>
                     </div>
@@ -390,22 +413,22 @@
                 <!-- ==================== TAB 4: APPROVAL ADMIN ==================== -->
                 <section id="tab-approval" class="tab-section hide space-y-5">
                     <!-- Antrean Nota Baru -->
-                    <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 flex items-center justify-between">
+                    <div class="kasly-card p-5 rounded-3xl flex items-center justify-between">
                         <div>
                             <h3 class="font-extrabold text-base text-slate-900">Antrean Approval Nota Baru</h3>
                             <p class="text-xs text-slate-500 mt-0.5">Periksa bukti nota sebelum menyetujui pemotongan saldo</p>
                         </div>
-                        <span id="approvalPendingTrxCount" class="bg-amber-100 text-amber-800 text-xs font-extrabold px-3 py-1 rounded-full">0 Pending</span>
+                        <span id="approvalPendingTrxCount" class="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-extrabold px-3 py-1 rounded-full">0 Pending</span>
                     </div>
                     <div id="listPendingTrx" class="space-y-3"></div>
 
                     <!-- Antrean Request Perubahan / Hapus dari Staf Lapangan -->
-                    <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 flex items-center justify-between">
+                    <div class="kasly-card p-5 rounded-3xl flex items-center justify-between">
                         <div>
                             <h3 class="font-extrabold text-base text-slate-900">Pengajuan Edit / Hapus Nota</h3>
                             <p class="text-xs text-slate-500 mt-0.5">Permintaan koreksi atau pembatalan salah input dari tim lapangan</p>
                         </div>
-                        <span id="approvalPendingReqCount" class="bg-indigo-100 text-indigo-800 text-xs font-extrabold px-3 py-1 rounded-full">0 Request</span>
+                        <span id="approvalPendingReqCount" class="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-extrabold px-3 py-1 rounded-full">0 Request</span>
                     </div>
                     <div id="listPendingReq" class="space-y-3"></div>
                 </section>
@@ -415,20 +438,20 @@
                     <!-- PANEL KAS INDUK DISTRIBUSI -->
                     <div id="kasDistribusiPanel" class="space-y-5">
                         <!-- Kartu Utama Kas Induk Distribusi -->
-                        <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-3xl p-5 md:p-6 text-white shadow-xl">
+                        <div class="kasly-header-gradient rounded-3xl p-5 md:p-6 text-white shadow-lg shadow-blue-900/10">
                             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div>
-                                    <p class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Saldo Kas Induk Distribusi</p>
-                                    <p id="kasIndukMainBalance" class="text-3xl md:text-4xl font-extrabold text-emerald-400 mt-1">Rp 0</p>
-                                    <p id="kasIndukWarningEmpty" class="hide text-xs text-rose-300 font-semibold mt-1.5 flex items-center gap-1">
+                                    <p class="text-xs font-semibold text-blue-100 uppercase tracking-wider">Saldo Kas Induk Distribusi</p>
+                                    <p id="kasIndukMainBalance" class="text-3xl md:text-4xl font-extrabold text-white mt-1">Rp 0</p>
+                                    <p id="kasIndukWarningEmpty" class="hide text-xs text-amber-200 font-semibold mt-1.5 flex items-center gap-1">
                                         <i class="ph-fill ph-warning-circle"></i> Saldo Kas Induk kosong. Isi saldo Kas Induk terlebih dahulu sebelum transfer UM.
                                     </p>
                                 </div>
                                 <div class="flex gap-2.5">
-                                    <button type="button" onclick="openTopupKasIndukModal()" class="flex-1 md:flex-none bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs px-4 py-3 rounded-xl shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-1.5 transition-all">
+                                    <button type="button" onclick="openTopupKasIndukModal()" class="flex-1 md:flex-none bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs px-4 py-3 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all">
                                         <i class="ph ph-plus-circle text-base"></i> Top-Up Kas Induk
                                     </button>
-                                    <button type="button" id="btnOpenTopupDriver" onclick="openTopupDriverModal('')" class="flex-1 md:flex-none bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs px-4 py-3 rounded-xl shadow-lg shadow-indigo-950/30 flex items-center justify-center gap-1.5 transition-all">
+                                    <button type="button" id="btnOpenTopupDriver" onclick="openTopupDriverModal('')" class="flex-1 md:flex-none bg-white text-blue-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed font-extrabold text-xs px-4 py-3 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all">
                                         <i class="ph ph-paper-plane-right text-base"></i> Transfer Saldo UM
                                     </button>
                                 </div>
@@ -436,7 +459,7 @@
                         </div>
 
                         <!-- Visibilitas Saldo Masing-Masing Driver & Operasional -->
-                        <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100">
+                        <div class="kasly-card p-5 rounded-3xl">
                             <div class="flex justify-between items-center mb-4">
                                 <div>
                                     <h4 class="font-bold text-slate-800 text-sm md:text-base">Visibilitas Saldo Kas Driver &amp; Operasional</h4>
@@ -447,7 +470,7 @@
                         </div>
 
                         <!-- Riwayat Mutasi Kas Induk Distribusi -->
-                        <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-3">
+                        <div class="kasly-card p-5 rounded-3xl space-y-3">
                             <h4 class="font-bold text-slate-800 text-sm md:text-base">Mutasi Buku Besar Kas Distribusi</h4>
                             <div id="listKasIndukHistory" class="space-y-2.5"></div>
                         </div>
@@ -455,104 +478,202 @@
 
                     <!-- PANEL KAS MANUFAKTUR (DIRECT POOL - TANPA TRANSFER KE USER) -->
                     <div id="kasManufakturPanel" class="hide space-y-5">
-                        <div class="bg-gradient-to-br from-teal-900 via-emerald-900 to-slate-900 rounded-3xl p-5 md:p-6 text-white shadow-xl">
+                        <div class="kasly-mfg-gradient rounded-3xl p-5 md:p-6 text-white shadow-lg shadow-teal-900/10">
                             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div>
-                                    <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Direct Pool Pabrik</span>
+                                    <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-white/20 text-white border border-white/25">Direct Pool Pabrik</span>
                                     <p class="text-xs font-semibold text-teal-100 uppercase tracking-wider mt-2">Saldo Kas Manufaktur Tersedia</p>
-                                    <p id="kasManufakturMainBalance" class="text-3xl md:text-4xl font-extrabold text-emerald-400 mt-1">Rp 0</p>
-                                    <p class="text-[11px] text-teal-200/80 mt-1.5">Saldo langsung terpotong otomatis saat nota Manufaktur di-Approve Finance/Admin.</p>
+                                    <p id="kasManufakturMainBalance" class="text-3xl md:text-4xl font-extrabold text-white mt-1">Rp 0</p>
+                                    <p class="text-[11px] text-teal-100 mt-1.5">Saldo langsung terpotong otomatis saat nota Manufaktur di-Approve Finance/Admin.</p>
                                 </div>
                                 <div class="flex gap-2.5">
-                                    <button type="button" onclick="openTopupKasManufakturModal()" class="flex-1 md:flex-none bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs px-4 py-3 rounded-xl shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-1.5 transition-all">
+                                    <button type="button" onclick="openTopupKasManufakturModal()" class="flex-1 md:flex-none bg-white text-teal-800 hover:bg-teal-50 font-extrabold text-xs px-4 py-3 rounded-xl shadow-md flex items-center justify-center gap-1.5 transition-all">
                                         <i class="ph ph-plus-circle text-base"></i> Top-Up Kas Manufaktur
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-3">
+                        <div class="kasly-card p-5 rounded-3xl space-y-3">
                             <h4 class="font-bold text-slate-800 text-sm md:text-base">Mutasi Buku Besar Kas Manufaktur</h4>
                             <div id="listKasManufakturHistory" class="space-y-2.5"></div>
                         </div>
                     </div>
                 </section>
 
-                <!-- ==================== TAB 6: LAPORAN & EXCEL (ADMIN) ==================== -->
+                <!-- ==================== TAB 6: LAPORAN TRANSAKSI BY KATEGORI & PIE CHART (ADMIN) ==================== -->
                 <section id="tab-laporan" class="tab-section hide space-y-4">
-                    <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <!-- Header Laporan + Tombol Export Excel -->
+                    <div class="kasly-card p-5 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                            <h3 id="laporanMainTitle" class="font-extrabold text-base text-slate-900">Laporan Transaksi Petty Cash</h3>
-                            <p id="laporanMainSubtitle" class="text-xs text-slate-500">Filter per User, status, tanggal, dan unduh Excel (.xlsx)</p>
+                            <h3 id="laporanMainTitle" class="font-extrabold text-base md:text-lg text-slate-900">Laporan Transaksi by Kategori</h3>
+                            <p id="laporanMainSubtitle" class="text-xs text-slate-500">Default periode bulan berjalan &bull; Klik kategori atau grafik pie untuk menyaring detail</p>
                         </div>
-                        <button type="button" onclick="exportLaporanExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-3 rounded-2xl shadow-md shadow-emerald-200 flex items-center justify-center gap-2 transition-all shrink-0">
+                        <button type="button" onclick="exportLaporanExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-3 rounded-2xl shadow-sm shadow-emerald-200 flex items-center justify-center gap-2 transition-all shrink-0">
                             <i class="ph-fill ph-microsoft-excel-logo text-lg"></i> Download Excel (.xlsx)
                         </button>
                     </div>
 
-                    <!-- Panel Filter Laporan -->
-                    <div class="bg-white p-4 md:p-5 rounded-3xl shadow-xs border border-slate-100 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <!-- Pill Bar Periode Cepat (Ala Kasly Screenshot - Default Bulan Ini) -->
+                    <div class="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+                        <button type="button" data-period="THIS_MONTH" onclick="setLaporanPeriodPreset('THIS_MONTH')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-blue-600 text-white shadow-xs shrink-0 transition-all">
+                            Bulan Ini
+                        </button>
+                        <button type="button" data-period="TODAY" onclick="setLaporanPeriodPreset('TODAY')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">
+                            Hari Ini
+                        </button>
+                        <button type="button" data-period="THIS_WEEK" onclick="setLaporanPeriodPreset('THIS_WEEK')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">
+                            Minggu Ini
+                        </button>
+                        <button type="button" data-period="LAST_MONTH" onclick="setLaporanPeriodPreset('LAST_MONTH')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">
+                            Bulan Lalu
+                        </button>
+                        <button type="button" data-period="ALL" onclick="setLaporanPeriodPreset('ALL')" class="period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all">
+                            Semua Waktu
+                        </button>
+                    </div>
+
+                    <!-- Panel Filter Tanggal, Kategori, User & Status -->
+                    <div class="kasly-card p-4 md:p-5 rounded-3xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Dari Tanggal</label>
+                            <input type="date" id="repFilterStart" onchange="onCustomDateFilterChange()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/60 outline-none focus:border-blue-600 focus:bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Sampai Tanggal</label>
+                            <input type="date" id="repFilterEnd" onchange="onCustomDateFilterChange()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/60 outline-none focus:border-blue-600 focus:bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Kategori</label>
+                            <select id="repFilterKategori" onchange="renderLaporan()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/60 outline-none focus:border-blue-600 focus:bg-white">
+                                <option value="ALL">Semua Kategori</option>
+                            </select>
+                        </div>
                         <div>
                             <label id="repFilterDriverLabel" class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Pilih Driver / Ops</label>
-                            <select id="repFilterDriver" onchange="renderLaporan()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                            <select id="repFilterDriver" onchange="renderLaporan()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/60 outline-none focus:border-blue-600 focus:bg-white">
                                 <option value="ALL">Semua User</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Status Approval</label>
-                            <select id="repFilterStatus" onchange="renderLaporan()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                            <select id="repFilterStatus" onchange="renderLaporan()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold bg-slate-50/60 outline-none focus:border-blue-600 focus:bg-white">
                                 <option value="ALL">Semua Status</option>
-                                <option value="Approved">Approved</option>
+                                <option value="Approved">Approved (Disetujui)</option>
                                 <option value="Pending">Pending</option>
                                 <option value="Rejected">Rejected</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Dari Tanggal</label>
-                            <input type="date" id="repFilterStart" onchange="renderLaporan()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <!-- 2x2 Pastel Summary KPI Cards (Persis Seperti Referensi Gambar!) -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- Card 1: Soft Blue -->
+                        <div class="bg-[#eef4ff] border border-blue-100/80 p-4 rounded-2xl">
+                            <div class="flex items-center gap-1.5 text-blue-600">
+                                <i class="ph-fill ph-receipt text-base"></i>
+                                <p class="text-[11px] font-bold">Total Transaksi</p>
+                            </div>
+                            <p id="repTotalCount" class="text-xl md:text-2xl font-extrabold text-slate-900 mt-1.5">0</p>
+                            <p id="repCountSub" class="text-[10px] font-semibold text-blue-600/80 mt-0.5">0 Approved &bull; 0 Pending</p>
                         </div>
-                        <div>
-                            <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Sampai Tanggal</label>
-                            <input type="date" id="repFilterEnd" onchange="renderLaporan()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+
+                        <!-- Card 2: Soft Mint Green -->
+                        <div class="bg-[#eafbf1] border border-emerald-100/80 p-4 rounded-2xl">
+                            <div class="flex items-center gap-1.5 text-emerald-600">
+                                <i class="ph-fill ph-trend-up text-base"></i>
+                                <p id="repTotalNominalLabel" class="text-[11px] font-bold">Total Pengeluaran</p>
+                            </div>
+                            <p id="repTotalApproved" class="text-lg md:text-2xl font-extrabold text-slate-900 mt-1.5 truncate">Rp 0</p>
+                            <p id="repPendingSub" class="text-[10px] font-semibold text-emerald-700/80 mt-0.5 truncate">Pending: Rp 0</p>
+                        </div>
+
+                        <!-- Card 3: Soft Warm Amber -->
+                        <div class="bg-[#fef5e7] border border-amber-100/80 p-4 rounded-2xl">
+                            <div class="flex items-center gap-1.5 text-amber-600">
+                                <i class="ph-fill ph-tag text-base"></i>
+                                <p class="text-[11px] font-bold">Kategori Terbesar</p>
+                            </div>
+                            <p id="repTopKategoriName" class="text-base md:text-lg font-extrabold text-slate-900 mt-1.5 truncate">-</p>
+                            <p id="repTopKategoriVal" class="text-[10px] font-semibold text-amber-700/80 mt-0.5 truncate">Rp 0</p>
+                        </div>
+
+                        <!-- Card 4: Soft Lavender Purple -->
+                        <div class="bg-[#f3eeff] border border-violet-100/80 p-4 rounded-2xl">
+                            <div class="flex items-center gap-1.5 text-violet-600">
+                                <i class="ph-fill ph-calendar-blank text-base"></i>
+                                <p class="text-[11px] font-bold">Periode</p>
+                            </div>
+                            <p id="repPeriodDisplay" class="text-base md:text-lg font-extrabold text-slate-900 mt-1.5 truncate">Bulan Ini</p>
+                            <p id="repPeriodDateSub" class="text-[10px] font-semibold text-violet-600/80 mt-0.5 truncate">Bulan berjalan</p>
                         </div>
                     </div>
 
-                    <!-- Ringkasan Nominal Laporan -->
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="bg-white p-3.5 rounded-2xl border border-slate-100">
-                            <p class="text-[11px] text-slate-400 font-bold">Total Item</p>
-                            <p id="repTotalCount" class="text-base md:text-lg font-extrabold text-slate-800 mt-0.5">0</p>
+                    <!-- Visualisasi Grafik Pie & Ringkasan per Kategori -->
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <!-- Kolom Grafik Pie -->
+                        <div class="md:col-span-5 kasly-card p-5 rounded-3xl flex flex-col justify-between">
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <h4 class="font-extrabold text-sm text-slate-900">Grafik Proporsi Kategori</h4>
+                                    <p class="text-[11px] text-slate-400">Distribusi biaya berdasarkan kategori</p>
+                                </div>
+                                <span class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                                    <i class="ph-fill ph-chart-pie-slice text-lg"></i>
+                                </span>
+                            </div>
+
+                            <div id="pieChartContainer" class="relative h-60 w-full flex items-center justify-center my-auto">
+                                <canvas id="categoryPieChart"></canvas>
+                            </div>
+                            <div id="pieChartEmptyState" class="hide py-12 text-center text-xs text-slate-400 font-semibold">
+                                Belum ada data nominal untuk grafik pada periode ini.
+                            </div>
                         </div>
-                        <div class="bg-white p-3.5 rounded-2xl border border-slate-100">
-                            <p class="text-[11px] text-emerald-600 font-bold">Total Approved</p>
-                            <p id="repTotalApproved" class="text-sm md:text-lg font-extrabold text-emerald-600 mt-0.5 truncate">Rp 0</p>
-                        </div>
-                        <div class="bg-white p-3.5 rounded-2xl border border-slate-100">
-                            <p class="text-[11px] text-amber-600 font-bold">Total Pending</p>
-                            <p id="repTotalPending" class="text-sm md:text-lg font-extrabold text-amber-600 mt-0.5 truncate">Rp 0</p>
+
+                        <!-- Kolom Rincian Nominal per Kategori -->
+                        <div class="md:col-span-7 kasly-card p-5 rounded-3xl space-y-3">
+                            <div class="flex items-center justify-between gap-2">
+                                <div>
+                                    <h4 class="font-extrabold text-sm text-slate-900">Rincian Pengeluaran per Kategori</h4>
+                                    <p class="text-[11px] text-slate-400">Tap kategori untuk melihat daftar notanya di bawah</p>
+                                </div>
+                                <button type="button" id="btnResetKatFilter" onclick="selectLaporanKategori('ALL')" class="hide text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full transition-colors">
+                                    Semua Kategori
+                                </button>
+                            </div>
+
+                            <div id="listCategoryBreakdown" class="space-y-2.5 max-h-72 overflow-y-auto pr-1"></div>
                         </div>
                     </div>
 
-                    <div id="listLaporanPreview" class="space-y-2.5"></div>
+                    <!-- Daftar Detail Nota Sesuai Filter -->
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between px-1">
+                            <h4 id="laporanDetailListTitle" class="font-extrabold text-sm text-slate-800">Daftar Nota Terfilter</h4>
+                            <span id="laporanDetailListBadge" class="text-[11px] font-bold text-slate-400">0 item</span>
+                        </div>
+                        <div id="listLaporanPreview" class="space-y-2.5"></div>
+                    </div>
                 </section>
 
                 <!-- ==================== TAB 7: PENGATURAN & KELOLA AKUN ==================== -->
                 <section id="tab-pengaturan" class="tab-section hide space-y-5">
                     <!-- Kartu Profil & Install PWA -->
-                    <div class="bg-white p-5 rounded-3xl shadow-xs border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="kasly-card p-5 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex items-center gap-3.5">
-                            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl font-bold">
+                            <div class="w-12 h-12 rounded-2xl bg-[#eef4ff] text-blue-600 flex items-center justify-center text-2xl font-bold">
                                 <i class="ph-fill ph-identification-card"></i>
                             </div>
                             <div>
                                 <h3 id="profileCardName" class="font-extrabold text-base text-slate-900">Nama User</h3>
                                 <p class="text-xs text-slate-500"><span id="profileCardUsername">@username</span> &bull; <span id="profileCardId">USR-000</span></p>
-                                <span id="profileCardRole" class="inline-block mt-1 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700">Role</span>
+                                <span id="profileCardRole" class="inline-block mt-1 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700">Role</span>
                             </div>
                         </div>
 
                         <div class="flex flex-wrap gap-2">
-                            <button type="button" id="btnInstallPwa" onclick="triggerInstallPwa()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-indigo-200 flex items-center gap-1.5 transition-all">
+                            <button type="button" id="btnInstallPwa" onclick="triggerInstallPwa()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-blue-200 flex items-center gap-1.5 transition-all">
                                 <i class="ph ph-download-simple text-base"></i> Install App (PWA)
                             </button>
                             <button type="button" id="btnConfigGasServer" onclick="openGasUrlSettingModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-1.5 transition-colors">
@@ -565,17 +686,17 @@
                     </div>
 
                     <!-- ADMIN ONLY: Master Pilihan Keterangan Cepat -->
-                    <div class="admin-only hide bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-4">
+                    <div class="admin-only hide kasly-card p-5 rounded-3xl space-y-4">
                         <div>
                             <h3 id="masterKatTitle" class="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                                <i class="ph-fill ph-list-checks text-indigo-600 text-xl"></i> Master Pilihan Keterangan Cepat
+                                <i class="ph-fill ph-list-checks text-blue-600 text-xl"></i> Master Pilihan Keterangan Cepat
                             </h3>
                             <p id="masterKatSubtitle" class="text-xs text-slate-500 mt-0.5">Tambahkan daftar pilihan agar tim lapangan tinggal pilih saat input nota</p>
                         </div>
 
                         <div class="flex gap-2">
-                            <input type="text" id="newKategoriInput" onkeydown="if(event.key==='Enter') submitAddKategori()" class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Contoh: Bensin Pertalite / Sparepart Mesin / Solar Genset">
-                            <button type="button" onclick="submitAddKategori()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shrink-0">
+                            <input type="text" id="newKategoriInput" onkeydown="if(event.key==='Enter') submitAddKategori()" class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-600" placeholder="Contoh: Parkir / Bensin Pertalite / Sparepart Mesin">
+                            <button type="button" onclick="submitAddKategori()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shrink-0">
                                 + Tambah
                             </button>
                         </div>
@@ -584,10 +705,10 @@
                     </div>
 
                     <!-- ADMIN ONLY: Tambah Akun User Baru -->
-                    <div class="admin-only hide bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-4">
+                    <div class="admin-only hide kasly-card p-5 rounded-3xl space-y-4">
                         <div>
                             <h3 class="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                                <i class="ph-fill ph-user-plus text-indigo-600 text-xl"></i> Tambah Akun User Baru
+                                <i class="ph-fill ph-user-plus text-blue-600 text-xl"></i> Tambah Akun User Baru
                             </h3>
                             <p class="text-xs text-slate-500 mt-0.5">Buat akun untuk Driver, Operasional, Manufaktur, atau Admin baru langsung dari aplikasi</p>
                         </div>
@@ -596,11 +717,11 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-500 mb-1">Nama Lengkap</label>
-                                    <input type="text" id="addNamaLengkap" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Contoh: Budi Santoso">
+                                    <input type="text" id="addNamaLengkap" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-600 outline-none text-sm" placeholder="Contoh: Budi Santoso">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-500 mb-1">Role / Hak Akses</label>
-                                    <select id="addRole" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-sm font-medium" onchange="toggleAddSaldoVisibility()">
+                                    <select id="addRole" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-600 outline-none bg-white text-sm font-medium" onchange="toggleAddSaldoVisibility()">
                                         <option value="Driver">Driver (Kas Distribusi)</option>
                                         <option value="Operasional">Operasional (Kas Distribusi)</option>
                                         <option value="Manufaktur">Manufaktur (Kas Pabrik - Direct)</option>
@@ -609,11 +730,11 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-500 mb-1">Username Login</label>
-                                    <input type="text" id="addUsername" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Contoh: budi_pabrik">
+                                    <input type="text" id="addUsername" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-600 outline-none text-sm" placeholder="Contoh: budi_pabrik">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-500 mb-1">Password Login</label>
-                                    <input type="text" id="addPassword" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm" placeholder="Minimal 4 karakter">
+                                    <input type="text" id="addPassword" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-600 outline-none text-sm" placeholder="Minimal 4 karakter">
                                 </div>
                             </div>
 
@@ -621,18 +742,18 @@
                                 <label class="block text-xs font-bold text-slate-500 mb-1">Saldo Awal Uang Muka Distribusi (Rp)</label>
                                 <div class="relative">
                                     <span class="absolute left-3.5 top-2.5 text-xs font-extrabold text-slate-400 select-none">Rp</span>
-                                    <input type="text" id="addSaldoUm" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" value="" placeholder="0" class="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold">
+                                    <input type="text" id="addSaldoUm" inputmode="numeric" autocomplete="off" oninput="formatRibuanInput(this)" value="" placeholder="0" class="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-600 outline-none text-sm font-bold">
                                 </div>
                             </div>
 
-                            <button type="button" onclick="submitAddUser()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all">
+                            <button type="button" onclick="submitAddUser()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm shadow-blue-200 transition-all">
                                 <i class="ph ph-check-circle text-lg"></i> Simpan Akun User Baru
                             </button>
                         </div>
                     </div>
 
                     <!-- ADMIN ONLY: Daftar Akun Terdaftar -->
-                    <div class="admin-only hide bg-white p-5 rounded-3xl shadow-xs border border-slate-100 space-y-3">
+                    <div class="admin-only hide kasly-card p-5 rounded-3xl space-y-3">
                         <h3 class="font-extrabold text-base text-slate-900">Daftar Akun Terdaftar</h3>
                         <div id="listAllUsers" class="space-y-2.5"></div>
                     </div>
@@ -666,7 +787,7 @@
             </button>
 
             <button type="button" data-nav="laporan" onclick="switchTab('laporan')" class="admin-only hide nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[9.5px] leading-tight font-bold text-slate-500">
-                <i class="ph ph-file-xls text-xl mb-0.5"></i> Laporan
+                <i class="ph ph-chart-pie-slice text-xl mb-0.5"></i> Laporan
             </button>
 
             <button type="button" data-nav="pengaturan" onclick="switchTab('pengaturan')" class="nav-btn flex-1 flex flex-col items-center justify-center py-1.5 rounded-xl text-[9.5px] leading-tight font-bold text-slate-500">
@@ -680,7 +801,6 @@
         // =========================================================================
         // 0. KONFIGURASI URL SERVER GOOGLE APPS SCRIPT (UNTUK GITHUB PAGES)
         // =========================================================================
-        // Tempel URL Web App (/exec) dari Google Apps Script Anda di bawah ini agar semua perangkat otomatis terhubung:
         var DEFAULT_GAS_API_URL = 'https://script.google.com/macros/s/AKfycbyuvDbcwiGwoyiF4yrrwdRW-Dwxif8umT1K2qmU9BEJ3L2yjYjkHPUAb_QUDsOy0n8ZWA/exec';
 
         function getGasApiUrl() {
@@ -719,7 +839,7 @@
                     '<input type="url" id="swalGasUrlInput" value="' + escapeHtml(currentUrl) + '" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-mono">' +
                 '</div>',
                 showCancelButton: true,
-                confirmButtonColor: '#4f46e5',
+                confirmButtonColor: '#2563eb',
                 cancelButtonColor: '#64748b',
                 confirmButtonText: 'Simpan URL',
                 cancelButtonText: 'Batal',
@@ -752,6 +872,8 @@
         var notaBase64Data = '';
         var notaMimeTypeData = 'image/jpeg';
         var deferredPrompt = null;
+        var categoryPieChartInstance = null;
+        var activePeriodPreset = 'THIS_MONTH';
         var lastKnownCounts = {
             pendingTrx: 0,
             pendingTrxMfg: 0,
@@ -761,6 +883,20 @@
             approvedTrx: 0,
             approvedTrxMfg: 0
         };
+
+        // Palet Warna Harmonis untuk Grafik Pie & Rincian Kategori
+        var CHART_COLORS = [
+            '#2563eb', // Royal Blue
+            '#10b981', // Emerald
+            '#f59e0b', // Amber
+            '#8b5cf6', // Violet
+            '#06b6d4', // Cyan
+            '#ec4899', // Pink
+            '#f97316', // Orange
+            '#14b8a6', // Teal
+            '#6366f1', // Indigo
+            '#84cc16'  // Lime
+        ];
 
         var SESSION_KEY = 'pettycash_pro_session_v1';
 
@@ -864,12 +1000,43 @@
             return neg + 'Rp ' + absVal.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         }
 
-        function getTodayLocalIso() {
-            var now = new Date();
-            var y = now.getFullYear();
-            var m = String(now.getMonth() + 1).padStart(2, '0');
-            var d = String(now.getDate()).padStart(2, '0');
+        function toLocalIsoDate(dateObj) {
+            var y = dateObj.getFullYear();
+            var m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            var d = String(dateObj.getDate()).padStart(2, '0');
             return y + '-' + m + '-' + d;
+        }
+
+        function getTodayLocalIso() {
+            return toLocalIsoDate(new Date());
+        }
+
+        function formatDisplayShortDate(isoStr) {
+            if (!isoStr || isoStr.length < 10) return isoStr || '';
+            var months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            var parts = isoStr.split('-');
+            var mIdx = parseInt(parts[1], 10) - 1;
+            return parseInt(parts[2], 10) + ' ' + (months[mIdx] || parts[1]) + ' ' + parts[0];
+        }
+
+        function formatDisplayMonthYear(isoStr) {
+            if (!isoStr || isoStr.length < 7) return 'Bulan Ini';
+            var months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            var parts = isoStr.split('-');
+            var mIdx = parseInt(parts[1], 10) - 1;
+            return (months[mIdx] || parts[1]) + ' ' + parts[0];
+        }
+
+        function getTrxIsoDate(trx) {
+            if (trx && trx.tanggal_iso && /^\d{4}-\d{2}-\d{2}$/.test(trx.tanggal_iso)) {
+                return trx.tanggal_iso;
+            }
+            var raw = String((trx && trx.tanggal) || '').split(' ')[0];
+            var parts = raw.split('/');
+            if (parts.length === 3) {
+                return parts[2] + '-' + parts[1].padStart(2, '0') + '-' + parts[0].padStart(2, '0');
+            }
+            return '';
         }
 
         function setDefaultInputTanggalNota() {
@@ -1017,7 +1184,7 @@
         function setupDynamicPwa() {
             try {
                 var pageUrl = window.location.href.split('#')[0];
-                var svgIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="28" fill="#4f46e5"/><text x="64" y="82" font-size="60" font-weight="bold" text-anchor="middle" fill="#ffffff" font-family="sans-serif">Rp</text></svg>';
+                var svgIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="28" fill="#2563eb"/><text x="64" y="82" font-size="60" font-weight="bold" text-anchor="middle" fill="#ffffff" font-family="sans-serif">Rp</text></svg>';
                 var iconDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgIcon);
                 var manifestObj = {
                     name: 'Petty Cash Pro',
@@ -1025,8 +1192,8 @@
                     start_url: pageUrl,
                     scope: pageUrl.substring(0, pageUrl.lastIndexOf('/') + 1),
                     display: 'standalone',
-                    background_color: '#f8fafc',
-                    theme_color: '#4f46e5',
+                    background_color: '#f4f7fb',
+                    theme_color: '#2563eb',
                     icons: [{
                         src: iconDataUrl,
                         sizes: '192x192',
@@ -1092,7 +1259,7 @@
                         '<p><b>Android (Chrome):</b> Tap ikon <b>titik tiga (⋮)</b> di pojok kanan atas browser &rarr; pilih <b>Tambahkan ke layar utama / Install aplikasi</b>.</p>' +
                         '<p><b>iPhone (Safari):</b> Tap ikon <b>Bagikan (Share)</b> di bagian bawah &rarr; pilih <b>Tambahkan ke Layar Utama (Add to Home Screen)</b>.</p>' +
                     '</div>',
-                    confirmButtonColor: '#4f46e5',
+                    confirmButtonColor: '#2563eb',
                     confirmButtonText: 'Mengerti',
                     customClass: { popup: 'rounded-3xl' }
                 });
@@ -1184,7 +1351,7 @@
                     icon: 'warning',
                     title: 'Data Belum Lengkap',
                     text: 'Silakan isi username dan password Anda.',
-                    confirmButtonColor: '#4f46e5',
+                    confirmButtonColor: '#2563eb',
                     customClass: { popup: 'rounded-3xl' }
                 });
                 return;
@@ -1211,6 +1378,7 @@
                 document.getElementById('loginScreen').classList.add('hide');
                 document.getElementById('appScreen').classList.remove('hide');
                 applyRoleUI();
+                setLaporanPeriodPreset('THIS_MONTH', true);
                 switchTab('dashboard', true);
                 return loadDashboardData(true);
             })
@@ -1225,7 +1393,7 @@
                     icon: 'error',
                     title: 'Login Gagal',
                     text: err.message || 'Gagal masuk ke aplikasi.',
-                    confirmButtonColor: '#4f46e5',
+                    confirmButtonColor: '#2563eb',
                     customClass: { popup: 'rounded-3xl' }
                 });
             });
@@ -1256,11 +1424,6 @@
             var roleBadge = document.getElementById('headerUserRole');
             if (roleBadge) {
                 roleBadge.textContent = currentUser.role;
-                roleBadge.className = 'text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full shrink-0 ' + (
-                    admin ? 'bg-indigo-50 text-indigo-700' :
-                    (mfg ? 'bg-teal-50 text-teal-700' :
-                    (String(currentUser.role || '').toLowerCase().indexOf('op') === 0 ? 'bg-amber-50 text-amber-700' : 'bg-sky-50 text-sky-700'))
-                );
             }
 
             document.getElementById('profileCardName').textContent = currentUser.nama_lengkap;
@@ -1315,15 +1478,26 @@
             var admin = isAdminUser();
             var isMfgMode = (activeMode === 'Manufaktur');
 
+            var topBanner = document.getElementById('topBlueBanner');
+            if (topBanner) {
+                if (isMfgMode) {
+                    topBanner.classList.remove('kasly-header-gradient');
+                    topBanner.classList.add('kasly-mfg-gradient');
+                } else {
+                    topBanner.classList.remove('kasly-mfg-gradient');
+                    topBanner.classList.add('kasly-header-gradient');
+                }
+            }
+
             var btnDist = document.getElementById('btnModeDistribusi');
             var btnMfg = document.getElementById('btnModeManufaktur');
             if (btnDist && btnMfg) {
                 if (isMfgMode) {
-                    btnDist.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-800';
-                    btnMfg.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-teal-600 text-white shadow-xs';
+                    btnDist.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-white/85 hover:text-white';
+                    btnMfg.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-white text-teal-700 shadow-xs';
                 } else {
-                    btnDist.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-white text-indigo-600 shadow-xs';
-                    btnMfg.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-800';
+                    btnDist.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 bg-white text-blue-600 shadow-xs';
+                    btnMfg.className = 'py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 text-white/85 hover:text-white';
                 }
             }
 
@@ -1359,18 +1533,23 @@
             if (hTitle) hTitle.textContent = isMfgMode ? 'Catatan Pengeluaran Kas Manufaktur' : 'Catatan Transaksi Kas Distribusi';
             if (hSub) hSub.textContent = isMfgMode ? 'Riwayat nota operasional pabrik & status approval Finance' : 'Riwayat pengajuan nota Driver/Operasional & status approval';
 
+            var lapTitle = document.getElementById('laporanMainTitle');
+            if (lapTitle) {
+                lapTitle.textContent = isMfgMode ? 'Laporan Kas Manufaktur by Kategori' : 'Laporan Kas Distribusi by Kategori';
+            }
+
             var inTitle = document.getElementById('inputNotaFormTitle');
             if (inTitle) {
                 inTitle.innerHTML = isMfgMode
                     ? '<i class="ph-fill ph-factory text-teal-600 text-xl"></i> Input Nota Kas Manufaktur'
-                    : '<i class="ph-fill ph-receipt text-indigo-600 text-xl"></i> Input Nota Pengeluaran';
+                    : '<i class="ph-fill ph-receipt text-blue-600 text-xl"></i> Input Nota Pengeluaran';
             }
 
             var mkTitle = document.getElementById('masterKatTitle');
             if (mkTitle) {
                 mkTitle.innerHTML = isMfgMode
                     ? '<i class="ph-fill ph-list-checks text-teal-600 text-xl"></i> Master Keterangan Kas Manufaktur'
-                    : '<i class="ph-fill ph-list-checks text-indigo-600 text-xl"></i> Master Keterangan Kas Distribusi';
+                    : '<i class="ph-fill ph-list-checks text-blue-600 text-xl"></i> Master Keterangan Kas Distribusi';
             }
         }
 
@@ -1397,16 +1576,16 @@
                 var btn = navBtns[j];
                 var isActive = btn.getAttribute('data-nav') === tabName;
                 if (btn.classList.contains('flex-col')) {
-                    btn.classList.remove('text-indigo-600', 'bg-indigo-50/70', 'font-extrabold', 'text-slate-500', 'font-bold');
+                    btn.classList.remove('text-blue-600', 'bg-blue-50/80', 'font-extrabold', 'text-slate-500', 'font-bold');
                     if (isActive) {
-                        btn.classList.add('text-indigo-600', 'bg-indigo-50/70', 'font-extrabold');
+                        btn.classList.add('text-blue-600', 'bg-blue-50/80', 'font-extrabold');
                     } else {
                         btn.classList.add('text-slate-500', 'font-bold');
                     }
                 } else {
-                    btn.classList.remove('text-indigo-600', 'bg-indigo-50', 'font-extrabold', 'text-slate-600', 'hover:bg-slate-50', 'font-bold');
+                    btn.classList.remove('text-blue-600', 'bg-blue-50', 'font-extrabold', 'text-slate-600', 'hover:bg-slate-50', 'font-bold');
                     if (isActive) {
-                        btn.classList.add('text-indigo-600', 'bg-indigo-50', 'font-extrabold');
+                        btn.classList.add('text-blue-600', 'bg-blue-50', 'font-extrabold');
                     } else {
                         btn.classList.add('text-slate-600', 'hover:bg-slate-50', 'font-bold');
                     }
@@ -1417,6 +1596,7 @@
                 setDefaultInputTanggalNota();
                 populateInputKategoriDropdown();
             } else if (tabName === 'laporan') {
+                populateFilterDropdowns();
                 renderLaporan();
             }
         }
@@ -1473,7 +1653,7 @@
                         icon: 'warning',
                         title: 'Sesi Berakhir',
                         text: err.message.replace('SESSION_INVALID:', '').trim(),
-                        confirmButtonColor: '#4f46e5',
+                        confirmButtonColor: '#2563eb',
                         customClass: { popup: 'rounded-3xl' }
                     });
                 } else if (isInitial) {
@@ -1573,7 +1753,7 @@
         }
 
         // =========================================================================
-        // 8. FILTER & RENDER BERANDA TRANSAKSI
+        // 8. FILTER & RENDER BERANDA TRANSAKSI (CLEAN KASLY CARD STYLE)
         // =========================================================================
         function populateFilterDropdowns() {
             if (!dashboardData || !isAdminUser()) return;
@@ -1605,6 +1785,87 @@
                 repSel.innerHTML = optsHtml;
                 if (prevR) repSel.value = prevR;
             }
+
+            // Populate Kategori Filter pada Tab Laporan
+            var katSel = document.getElementById('repFilterKategori');
+            if (katSel) {
+                var prevK = katSel.value || 'ALL';
+                var activeTrxs = isMfg ? (dashboardData.transaksi_mfg || []) : (dashboardData.transaksi || []);
+                var masterKats = isMfg ? (dashboardData.kategori_mfg_aktif || []) : (dashboardData.kategori_aktif || []);
+                var katSet = {};
+                var katList = [];
+
+                for (var m = 0; m < masterKats.length; m++) {
+                    var mk = String(masterKats[m] || '').trim();
+                    if (mk && !katSet[mk.toLowerCase()]) {
+                        katSet[mk.toLowerCase()] = true;
+                        katList.push(mk);
+                    }
+                }
+                for (var t = 0; t < activeTrxs.length; t++) {
+                    var tk = String(activeTrxs[t].kategori || '').trim();
+                    if (tk && !katSet[tk.toLowerCase()]) {
+                        katSet[tk.toLowerCase()] = true;
+                        katList.push(tk);
+                    }
+                }
+
+                var kHtml = '<option value="ALL">Semua Kategori</option>';
+                for (var idx = 0; idx < katList.length; idx++) {
+                    kHtml += '<option value="' + escapeAttr(katList[idx]) + '">' + escapeHtml(katList[idx]) + '</option>';
+                }
+                katSel.innerHTML = kHtml;
+                katSel.value = prevK;
+                if (katSel.value !== prevK) katSel.value = 'ALL';
+            }
+        }
+
+        function buildCleanTransactionCardHtml(t, allowActions) {
+            var badgeCls = 'bg-amber-50 text-amber-600';
+            if (t.status === 'Approved') badgeCls = 'bg-emerald-50 text-emerald-600';
+            else if (t.status === 'Rejected') badgeCls = 'bg-rose-50 text-rose-600';
+
+            var actionHtml = '';
+            if (allowActions) {
+                actionHtml = '<div class="flex items-center gap-1.5">' +
+                    (isAdminUser()
+                        ? '<button type="button" onclick="openAdminEditTrxModal(\'' + escapeAttr(t.id_transaksi) + '\')" class="text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-pencil-simple"></i> Edit</button>' +
+                          '<button type="button" onclick="confirmAdminDeleteTrx(\'' + escapeAttr(t.id_transaksi) + '\')" class="text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-trash"></i> Hapus</button>'
+                        : '<button type="button" onclick="openDriverRequestModal(\'' + escapeAttr(t.id_transaksi) + '\')" class="text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-note-pencil"></i> Ajukan Edit / Hapus</button>') +
+                '</div>';
+            }
+
+            return '<div class="kasly-card p-4 rounded-2xl space-y-2.5">' +
+                '<div class="flex items-start justify-between gap-2">' +
+                    '<div>' +
+                        '<p class="font-extrabold text-slate-900 text-xs tracking-tight">#' + escapeHtml(t.id_transaksi) + '</p>' +
+                        '<p class="text-[11px] text-slate-400 mt-0.5">' + escapeHtml(t.tanggal) + '</p>' +
+                    '</div>' +
+                    '<span class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg ' + badgeCls + '">' + escapeHtml(t.status) + '</span>' +
+                '</div>' +
+
+                '<div class="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">' +
+                    '<i class="ph ph-user text-slate-400"></i>' +
+                    '<span>' + escapeHtml(t.nama_driver) + '</span>' +
+                    '<span class="text-slate-300">&bull;</span>' +
+                    '<span class="font-extrabold text-slate-800">' + escapeHtml(t.kategori) + '</span>' +
+                '</div>' +
+
+                (t.keterangan ? '<p class="text-xs text-slate-500 bg-slate-50/80 px-3 py-1.5 rounded-xl">' + escapeHtml(t.keterangan) + '</p>' : '') +
+
+                '<div class="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">' +
+                    '<div class="flex items-center gap-2">' +
+                        (t.url_nota
+                            ? '<button type="button" onclick="previewNotaImage(\'' + escapeAttr(t.url_nota) + '\')" class="text-[11px] font-bold text-blue-600 bg-[#eef4ff] hover:bg-blue-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-image"></i> Lihat Nota</button>'
+                            : '<span class="text-[10px] text-slate-400 italic">Tanpa foto nota</span>') +
+                        actionHtml +
+                    '</div>' +
+                    '<div class="text-right ml-auto">' +
+                        '<span class="text-[10px] font-bold text-slate-400 mr-1.5">Total</span>' +
+                        '<span class="font-extrabold text-blue-600 text-sm md:text-base">' + formatRupiah(t.nominal) + '</span>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
         }
 
         function renderDashboardUI() {
@@ -1632,47 +1893,13 @@
             if (!container) return;
 
             if (filtered.length === 0) {
-                container.innerHTML = '<div class="bg-white p-8 rounded-3xl border border-slate-100 text-center text-slate-400 text-xs font-semibold">Belum ada catatan transaksi yang sesuai filter.</div>';
+                container.innerHTML = '<div class="kasly-card p-8 rounded-3xl text-center text-slate-400 text-xs font-semibold">Belum ada catatan transaksi yang sesuai filter.</div>';
                 return;
             }
 
             var html = '';
             for (var i = 0; i < filtered.length; i++) {
-                var t = filtered[i];
-                var badgeCls = 'bg-amber-50 text-amber-700 border-amber-200';
-                if (t.status === 'Approved') badgeCls = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                else if (t.status === 'Rejected') badgeCls = 'bg-rose-50 text-rose-700 border-rose-200';
-
-                html += '<div class="bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-2.5">' +
-                    '<div class="flex items-start justify-between gap-2">' +
-                        '<div class="min-w-0">' +
-                            '<div class="flex flex-wrap items-center gap-1.5">' +
-                                '<span class="text-[10px] font-extrabold text-slate-400">' + escapeHtml(t.id_transaksi) + '</span>' +
-                                '<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full border ' + badgeCls + '">' + escapeHtml(t.status) + '</span>' +
-                                (isAdminUser() ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">' + escapeHtml(t.nama_driver) + '</span>' : '') +
-                            '</div>' +
-                            '<h4 class="font-extrabold text-slate-900 text-sm mt-1">' + escapeHtml(t.kategori) + '</h4>' +
-                            (t.keterangan ? '<p class="text-xs text-slate-500 mt-0.5">' + escapeHtml(t.keterangan) + '</p>' : '') +
-                        '</div>' +
-                        '<div class="text-right shrink-0">' +
-                            '<p class="font-extrabold text-slate-900 text-sm md:text-base">' + formatRupiah(t.nominal) + '</p>' +
-                            '<p class="text-[10px] text-slate-400 mt-0.5">' + escapeHtml(t.tanggal) + '</p>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">' +
-                        '<div class="flex items-center gap-2">' +
-                            (t.url_nota
-                                ? '<button type="button" onclick="previewNotaImage(\'' + escapeAttr(t.url_nota) + '\')" class="text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-image"></i> Lihat Nota</button>'
-                                : '<span class="text-[10px] text-slate-400 italic">Tanpa foto nota</span>') +
-                        '</div>' +
-                        '<div class="flex items-center gap-1.5">' +
-                            (isAdminUser()
-                                ? '<button type="button" onclick="openAdminEditTrxModal(\'' + escapeAttr(t.id_transaksi) + '\')" class="text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-pencil-simple"></i> Edit</button>' +
-                                  '<button type="button" onclick="confirmAdminDeleteTrx(\'' + escapeAttr(t.id_transaksi) + '\')" class="text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-trash"></i> Hapus</button>'
-                                : '<button type="button" onclick="openDriverRequestModal(\'' + escapeAttr(t.id_transaksi) + '\')" class="text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg flex items-center gap-1"><i class="ph ph-note-pencil"></i> Ajukan Edit / Hapus</button>') +
-                        '</div>' +
-                    '</div>' +
-                '</div>';
+                html += buildCleanTransactionCardHtml(filtered[i], true);
             }
             container.innerHTML = html;
         }
@@ -1691,7 +1918,7 @@
             var html = '';
             for (var i = 0; i < reqs.length; i++) {
                 var r = reqs[i];
-                var badge = r.status_request === 'Approved' ? 'bg-emerald-100 text-emerald-700' : (r.status_request === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700');
+                var badge = r.status_request === 'Approved' ? 'bg-emerald-50 text-emerald-700' : (r.status_request === 'Rejected' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700');
                 html += '<div class="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2 text-xs">' +
                     '<div>' +
                         '<span class="font-bold text-slate-800">' + escapeHtml(r.jenis_request) + '</span> &bull; <span class="text-slate-500">' + escapeHtml(r.id_transaksi) + '</span>' +
@@ -1714,9 +1941,9 @@
                 title: 'Bukti Nota',
                 html: '<div class="space-y-3">' +
                     '<img src="' + escapeAttr(imgUrl) + '" onerror="this.style.display=\'none\'" class="max-h-80 mx-auto rounded-2xl border border-slate-200">' +
-                    '<a href="' + escapeAttr(url) + '" target="_blank" rel="noopener" class="inline-block text-xs font-bold text-indigo-600 underline">Buka File Asli di Google Drive &rarr;</a>' +
+                    '<a href="' + escapeAttr(url) + '" target="_blank" rel="noopener" class="inline-block text-xs font-bold text-blue-600 underline">Buka File Asli di Google Drive &rarr;</a>' +
                 '</div>',
-                confirmButtonColor: '#4f46e5',
+                confirmButtonColor: '#2563eb',
                 confirmButtonText: 'Tutup',
                 customClass: { popup: 'rounded-3xl' }
             });
@@ -1810,11 +2037,11 @@
             var nominal = parseRibuanValue(document.getElementById('inputNominal').value);
 
             if (!kategori) {
-                Swal.fire({ icon: 'warning', title: 'Kategori Kosong', text: 'Pilih atau isi judul kategori pengeluaran terlebih dahulu.', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                Swal.fire({ icon: 'warning', title: 'Kategori Kosong', text: 'Pilih atau isi judul kategori pengeluaran terlebih dahulu.', confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 return;
             }
             if (nominal <= 0) {
-                Swal.fire({ icon: 'warning', title: 'Nominal Tidak Valid', text: 'Masukkan nominal pengeluaran lebih dari Rp 0.', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                Swal.fire({ icon: 'warning', title: 'Nominal Tidak Valid', text: 'Masukkan nominal pengeluaran lebih dari Rp 0.', confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 return;
             }
 
@@ -1841,11 +2068,11 @@
             .then(function(res) {
                 hideLoading();
                 switchTab('dashboard');
-                Swal.fire({ icon: 'success', title: 'Berhasil', text: res.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                Swal.fire({ icon: 'success', title: 'Berhasil', text: res.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             })
             .catch(function(err) {
                 hideLoading();
-                Swal.fire({ icon: 'error', title: 'Gagal Mengirim', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                Swal.fire({ icon: 'error', title: 'Gagal Mengirim', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
 
@@ -1858,7 +2085,7 @@
 
             var list = dashboardData.driver_topups || [];
             if (list.length === 0) {
-                container.innerHTML = '<div class="bg-white p-8 rounded-3xl border border-slate-100 text-center text-slate-400 text-xs font-semibold">Belum ada riwayat transfer saldo UM masuk.</div>';
+                container.innerHTML = '<div class="kasly-card p-8 rounded-3xl text-center text-slate-400 text-xs font-semibold">Belum ada riwayat transfer saldo UM masuk.</div>';
                 return;
             }
 
@@ -1866,18 +2093,18 @@
             for (var i = 0; i < list.length; i++) {
                 var item = list[i];
                 var isPending = item.status_topup === 'Pending';
-                var badgeCls = isPending ? 'bg-amber-100 text-amber-800' : (item.status_topup === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700');
+                var badgeCls = isPending ? 'bg-amber-50 text-amber-700' : (item.status_topup === 'Rejected' ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700');
                 var statusLabel = isPending ? 'Menunggu Konfirmasi Anda' : (item.status_topup === 'Rejected' ? 'Ditolak (Dikembalikan)' : 'Diterima');
 
-                html += '<div class="bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-3">' +
+                html += '<div class="kasly-card p-4 rounded-2xl space-y-3">' +
                     '<div class="flex items-start justify-between gap-2">' +
                         '<div>' +
                             '<span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ' + badgeCls + '">' + statusLabel + '</span>' +
-                            '<h4 class="font-extrabold text-slate-900 text-base mt-1.5">' + formatRupiah(item.nominal) + '</h4>' +
+                            '<h4 class="font-extrabold text-blue-600 text-base mt-1.5">' + formatRupiah(item.nominal) + '</h4>' +
                             '<p class="text-xs text-slate-500 mt-0.5">' + escapeHtml(item.keterangan) + '</p>' +
                         '</div>' +
                         '<div class="text-right text-[10px] text-slate-400">' +
-                            '<p class="font-bold">' + escapeHtml(item.id_kas) + '</p>' +
+                            '<p class="font-bold text-slate-700">#' + escapeHtml(item.id_kas) + '</p>' +
                             '<p>' + escapeHtml(item.tanggal) + '</p>' +
                         '</div>' +
                     '</div>' +
@@ -1918,11 +2145,11 @@
                     })
                     .then(function(data) {
                         hideLoading();
-                        Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                        Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                     })
                     .catch(function(err) {
                         hideLoading();
-                        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                     });
                 });
             } else {
@@ -1952,11 +2179,11 @@
                     })
                     .then(function(data) {
                         hideLoading();
-                        Swal.fire({ icon: 'info', title: 'Top-Up Ditolak', text: data.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                        Swal.fire({ icon: 'info', title: 'Top-Up Ditolak', text: data.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                     })
                     .catch(function(err) {
                         hideLoading();
-                        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                        Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                     });
                 });
             }
@@ -1979,24 +2206,24 @@
             var trxContainer = document.getElementById('listPendingTrx');
             if (trxContainer) {
                 if (trxs.length === 0) {
-                    trxContainer.innerHTML = '<div class="bg-white p-6 rounded-3xl border border-slate-100 text-center text-slate-400 text-xs font-semibold">Tidak ada antrean nota baru saat ini.</div>';
+                    trxContainer.innerHTML = '<div class="kasly-card p-6 rounded-3xl text-center text-slate-400 text-xs font-semibold">Tidak ada antrean nota baru saat ini.</div>';
                 } else {
                     var h = '';
                     for (var i = 0; i < trxs.length; i++) {
                         var t = trxs[i];
-                        h += '<div class="bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-3">' +
+                        h += '<div class="kasly-card p-4 rounded-2xl space-y-3">' +
                             '<div class="flex items-start justify-between gap-2">' +
                                 '<div>' +
-                                    '<span class="text-[10px] font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">' + escapeHtml(t.nama_driver) + ' (' + escapeHtml(t.role_user) + ')</span>' +
-                                    '<h4 class="font-extrabold text-slate-900 text-sm mt-1">' + escapeHtml(t.kategori) + '</h4>' +
+                                    '<span class="text-[10px] font-extrabold text-blue-600 bg-[#eef4ff] px-2.5 py-0.5 rounded-full">' + escapeHtml(t.nama_driver) + ' (' + escapeHtml(t.role_user) + ')</span>' +
+                                    '<h4 class="font-extrabold text-slate-900 text-sm mt-1.5">' + escapeHtml(t.kategori) + '</h4>' +
                                     (t.keterangan ? '<p class="text-xs text-slate-500 mt-0.5">' + escapeHtml(t.keterangan) + '</p>' : '') +
-                                    '<p class="text-[10px] text-slate-400 mt-1">' + escapeHtml(t.id_transaksi) + ' &bull; ' + escapeHtml(t.tanggal) + '</p>' +
+                                    '<p class="text-[10px] text-slate-400 mt-1">#' + escapeHtml(t.id_transaksi) + ' &bull; ' + escapeHtml(t.tanggal) + '</p>' +
                                 '</div>' +
-                                '<p class="font-extrabold text-base text-slate-900 shrink-0">' + formatRupiah(t.nominal) + '</p>' +
+                                '<p class="font-extrabold text-base text-blue-600 shrink-0">' + formatRupiah(t.nominal) + '</p>' +
                             '</div>' +
-                            '<div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">' +
+                            '<div class="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">' +
                                 (t.url_nota
-                                    ? '<button type="button" onclick="previewNotaImage(\'' + escapeAttr(t.url_nota) + '\')" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl flex items-center gap-1"><i class="ph ph-image"></i> Cek Foto Nota</button>'
+                                    ? '<button type="button" onclick="previewNotaImage(\'' + escapeAttr(t.url_nota) + '\')" class="text-xs font-bold text-blue-600 bg-[#eef4ff] px-3 py-1.5 rounded-xl flex items-center gap-1"><i class="ph ph-image"></i> Cek Foto Nota</button>'
                                     : '<span class="text-[11px] text-slate-400 italic">Tanpa foto bukti</span>') +
                                 '<div class="flex gap-2">' +
                                     '<button type="button" onclick="processApprovalTrx(\'' + escapeAttr(t.id_transaksi) + '\', \'Rejected\')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-3.5 py-2 rounded-xl">Tolak</button>' +
@@ -2012,32 +2239,32 @@
             var reqContainer = document.getElementById('listPendingReq');
             if (reqContainer) {
                 if (reqs.length === 0) {
-                    reqContainer.innerHTML = '<div class="bg-white p-6 rounded-3xl border border-slate-100 text-center text-slate-400 text-xs font-semibold">Tidak ada pengajuan edit/hapus nota.</div>';
+                    reqContainer.innerHTML = '<div class="kasly-card p-6 rounded-3xl text-center text-slate-400 text-xs font-semibold">Tidak ada pengajuan edit/hapus nota.</div>';
                 } else {
                     var hr = '';
                     for (var j = 0; j < reqs.length; j++) {
                         var r = reqs[j];
                         var detailBaru = '';
                         if (r.jenis_request === 'Request Edit' && r.data_baru) {
-                            detailBaru = '<div class="p-2.5 rounded-xl bg-indigo-50/70 border border-indigo-100 text-[11px] space-y-0.5">' +
-                                '<p class="font-bold text-indigo-800">Usulan Perubahan:</p>' +
+                            detailBaru = '<div class="p-2.5 rounded-xl bg-[#eef4ff] border border-blue-100 text-[11px] space-y-0.5">' +
+                                '<p class="font-bold text-blue-800">Usulan Perubahan:</p>' +
                                 '<p>Kategori: <b>' + escapeHtml(r.data_baru.kategori || '-') + '</b></p>' +
                                 '<p>Keterangan: <b>' + escapeHtml(r.data_baru.keterangan_manual || '-') + '</b></p>' +
                                 '<p>Nominal Baru: <b>' + formatRupiah(r.data_baru.nominal || 0) + '</b></p>' +
                             '</div>';
                         }
-                        hr += '<div class="bg-white p-4 rounded-3xl shadow-xs border border-slate-100 space-y-2.5">' +
+                        hr += '<div class="kasly-card p-4 rounded-2xl space-y-2.5">' +
                             '<div class="flex items-center justify-between">' +
-                                '<span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ' + (r.jenis_request === 'Request Delete' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800') + '">' + escapeHtml(r.jenis_request) + '</span>' +
-                                '<span class="text-[10px] font-bold text-slate-400">' + escapeHtml(r.id_request) + ' &bull; ' + escapeHtml(r.id_transaksi) + '</span>' +
+                                '<span class="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ' + (r.jenis_request === 'Request Delete' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-800') + '">' + escapeHtml(r.jenis_request) + '</span>' +
+                                '<span class="text-[10px] font-bold text-slate-400">#' + escapeHtml(r.id_request) + ' &bull; #' + escapeHtml(r.id_transaksi) + '</span>' +
                             '</div>' +
                             '<p class="text-xs font-bold text-slate-800">Pemohon: ' + escapeHtml(r.nama_driver) + '</p>' +
                             '<p class="text-xs text-slate-600">Alasan: <span class="italic">"' + escapeHtml(r.alasan) + '"</span></p>' +
                             (r.trx_lama ? '<p class="text-[11px] text-slate-400">Data Asli: ' + escapeHtml(r.trx_lama.kategori) + ' (' + formatRupiah(r.trx_lama.nominal) + ' - ' + escapeHtml(r.trx_lama.status) + ')</p>' : '') +
                             detailBaru +
-                            '<div class="pt-2 border-t border-slate-100 flex justify-end gap-2">' +
+                            '<div class="pt-2.5 border-t border-slate-100 flex justify-end gap-2">' +
                                 '<button type="button" onclick="processApprovalRequest(\'' + escapeAttr(r.id_request) + '\', \'Rejected\')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs px-3.5 py-2 rounded-xl">Tolak</button>' +
-                                '<button type="button" onclick="processApprovalRequest(\'' + escapeAttr(r.id_request) + '\', \'Approved\')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl">Setujui Perubahan</button>' +
+                                '<button type="button" onclick="processApprovalRequest(\'' + escapeAttr(r.id_request) + '\', \'Approved\')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-xl">Setujui Perubahan</button>' +
                             '</div>' +
                         '</div>';
                     }
@@ -2063,7 +2290,7 @@
             })
             .catch(function(err) {
                 hideLoading();
-                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
 
@@ -2084,7 +2311,7 @@
             })
             .catch(function(err) {
                 hideLoading();
-                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
 
@@ -2118,23 +2345,21 @@
                     var gd = '';
                     for (var i = 0; i < drvs.length; i++) {
                         var d = drvs[i];
-                        gd += '<div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2">' +
+                        gd += '<div class="p-3.5 rounded-2xl bg-[#f8faff] border border-blue-100/70 flex items-center justify-between gap-2">' +
                             '<div class="min-w-0">' +
                                 '<p class="font-bold text-slate-900 text-xs truncate">' + escapeHtml(d.nama_lengkap) + '</p>' +
-                                '<span class="text-[10px] font-bold text-indigo-600">' + escapeHtml(d.role) + ' &bull; ' + escapeHtml(d.id_user) + '</span>' +
-                                '<p class="font-extrabold text-sm text-slate-800 mt-1">' + formatRupiah(d.saldo_um) + '</p>' +
+                                '<span class="text-[10px] font-bold text-blue-600">' + escapeHtml(d.role) + ' &bull; ' + escapeHtml(d.id_user) + '</span>' +
+                                '<p class="font-extrabold text-sm text-slate-900 mt-1">' + formatRupiah(d.saldo_um) + '</p>' +
                             '</div>' +
-                            '<button type="button" onclick="openTopupDriverModal(\'' + escapeAttr(d.id_user) + '\')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] px-3 py-2 rounded-xl shrink-0">+ Top-Up</button>' +
+                            '<button type="button" onclick="openTopupDriverModal(\'' + escapeAttr(d.id_user) + '\')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] px-3 py-2 rounded-xl shrink-0">+ Top-Up</button>' +
                         '</div>';
                     }
                     gridDrv.innerHTML = gd;
                 }
             }
 
-            // Riwayat Mutasi Kas Distribusi
             renderKasHistoryList('listKasIndukHistory', dashboardData.kas_induk_history || []);
 
-            // Kas Manufaktur
             var kasMfgBal = parseFloat(dashboardData.saldo_kas_manufaktur) || 0;
             var elMfgKas = document.getElementById('kasManufakturMainBalance');
             if (elMfgKas) elMfgKas.textContent = formatRupiah(kasMfgBal);
@@ -2152,16 +2377,16 @@
             for (var i = 0; i < list.length; i++) {
                 var k = list[i];
                 var isIn = k.jenis_mutasi.indexOf('In') === 0;
-                html += '<div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2 text-xs">' +
+                html += '<div class="p-3 rounded-2xl bg-slate-50/80 border border-slate-100 flex items-center justify-between gap-2 text-xs">' +
                     '<div class="min-w-0">' +
                         '<div class="flex items-center gap-1.5">' +
-                            '<span class="text-[10px] font-extrabold px-2 py-0.5 rounded ' + (isIn ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800') + '">' + escapeHtml(k.jenis_mutasi) + '</span>' +
+                            '<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md ' + (isIn ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800') + '">' + escapeHtml(k.jenis_mutasi) + '</span>' +
                             '<span class="text-[10px] text-slate-400">' + escapeHtml(k.tanggal) + '</span>' +
                         '</div>' +
                         '<p class="font-semibold text-slate-700 mt-1">' + escapeHtml(k.keterangan) + '</p>' +
                     '</div>' +
                     '<div class="text-right shrink-0">' +
-                        '<p class="font-extrabold ' + (isIn ? 'text-emerald-600' : 'text-slate-900') + '">' + (isIn ? '+' : '-') + formatRupiah(k.nominal) + '</p>' +
+                        '<p class="font-extrabold ' + (isIn ? 'text-emerald-600' : 'text-blue-600') + '">' + (isIn ? '+' : '-') + formatRupiah(k.nominal) + '</p>' +
                         '<p class="text-[10px] text-slate-400">Saldo: ' + formatRupiah(k.saldo_akhir) + '</p>' +
                     '</div>' +
                 '</div>';
@@ -2207,11 +2432,11 @@
                 })
                 .then(function(data) {
                     hideLoading();
-                    Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 })
                 .catch(function(err) {
                     hideLoading();
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
         }
@@ -2284,7 +2509,7 @@
                     '<div><label class="font-bold text-slate-600 block mb-1">Catatan (Opsional)</label><input type="text" id="swalTopupDrvKet" placeholder="Contoh: UM Rute Luar Kota" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs"></div>' +
                 '</div>',
                 showCancelButton: true,
-                confirmButtonColor: '#4f46e5',
+                confirmButtonColor: '#2563eb',
                 cancelButtonColor: '#64748b',
                 confirmButtonText: 'Kirim Saldo UM',
                 cancelButtonText: 'Batal',
@@ -2316,19 +2541,95 @@
                 })
                 .then(function(data) {
                     hideLoading();
-                    Swal.fire({ icon: 'success', title: 'Top-Up Terkirim', text: data.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ icon: 'success', title: 'Top-Up Terkirim', text: data.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 })
                 .catch(function(err) {
                     hideLoading();
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
         }
 
         // =========================================================================
-        // 13. LAPORAN & EXPORT EXCEL (.XLSX)
+        // 13. LAPORAN TRANSAKSI BY KATEGORI, PIE CHART & EXPORT EXCEL (.XLSX)
         // =========================================================================
-        function getFilteredLaporanData() {
+        function updatePeriodPillStyles(preset) {
+            var pills = document.querySelectorAll('.period-pill');
+            for (var i = 0; i < pills.length; i++) {
+                var p = pills[i];
+                var isAct = p.getAttribute('data-period') === preset;
+                if (isAct) {
+                    p.className = 'period-pill px-4 py-2 rounded-full text-xs font-bold bg-blue-600 text-white shadow-xs shrink-0 transition-all';
+                } else {
+                    p.className = 'period-pill px-4 py-2 rounded-full text-xs font-bold bg-white text-slate-600 border border-slate-200/80 hover:border-blue-300 shrink-0 transition-all';
+                }
+            }
+        }
+
+        function setLaporanPeriodPreset(preset, skipRender) {
+            activePeriodPreset = preset;
+            updatePeriodPillStyles(preset);
+
+            var startEl = document.getElementById('repFilterStart');
+            var endEl = document.getElementById('repFilterEnd');
+            if (!startEl || !endEl) return;
+
+            var now = new Date();
+            var startStr = '';
+            var endStr = '';
+
+            if (preset === 'THIS_MONTH') {
+                var firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                var lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                startStr = toLocalIsoDate(firstDay);
+                endStr = toLocalIsoDate(lastDay);
+            } else if (preset === 'TODAY') {
+                startStr = toLocalIsoDate(now);
+                endStr = toLocalIsoDate(now);
+            } else if (preset === 'THIS_WEEK') {
+                var dayOfWeek = now.getDay(); // 0 = Minggu, 1 = Senin
+                var diffToMon = (dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+                var monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMon);
+                var sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+                startStr = toLocalIsoDate(monday);
+                endStr = toLocalIsoDate(sunday);
+            } else if (preset === 'LAST_MONTH') {
+                var prevFirst = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                var prevLast = new Date(now.getFullYear(), now.getMonth(), 0);
+                startStr = toLocalIsoDate(prevFirst);
+                endStr = toLocalIsoDate(prevLast);
+            } else if (preset === 'ALL') {
+                startStr = '';
+                endStr = '';
+            }
+
+            startEl.value = startStr;
+            endEl.value = endStr;
+
+            if (!skipRender) {
+                renderLaporan();
+            }
+        }
+
+        function onCustomDateFilterChange() {
+            activePeriodPreset = 'CUSTOM';
+            updatePeriodPillStyles('CUSTOM');
+            renderLaporan();
+        }
+
+        function selectLaporanKategori(katName) {
+            var katSel = document.getElementById('repFilterKategori');
+            if (!katSel) return;
+            if (katSel.value === katName && katName !== 'ALL') {
+                katSel.value = 'ALL';
+            } else {
+                katSel.value = katName;
+            }
+            renderLaporan();
+        }
+
+        // Mengambil data terfilter berdasarkan Tanggal, User, dan Status (sebelum filter kategori spesifik, agar Pie Chart selalu menampilkan perbandingan semua kategori dalam periode tersebut!)
+        function getBasePeriodLaporanData() {
             if (!dashboardData) return [];
             var isMfg = (activeMode === 'Manufaktur');
             var list = isMfg ? (dashboardData.transaksi_mfg || []) : (dashboardData.transaksi || []);
@@ -2341,48 +2642,304 @@
             return list.filter(function(t) {
                 if (uVal !== 'ALL' && t.id_user !== uVal) return false;
                 if (sVal !== 'ALL' && t.status !== sVal) return false;
-                if (dStart && t.tanggal_iso && t.tanggal_iso < dStart) return false;
-                if (dEnd && t.tanggal_iso && t.tanggal_iso > dEnd) return false;
+                var iso = getTrxIsoDate(t);
+                if (dStart && iso && iso < dStart) return false;
+                if (dEnd && iso && iso > dEnd) return false;
                 return true;
+            });
+        }
+
+        function getFilteredLaporanData() {
+            var base = getBasePeriodLaporanData();
+            var kVal = document.getElementById('repFilterKategori') ? document.getElementById('repFilterKategori').value : 'ALL';
+            if (kVal === 'ALL') return base;
+            return base.filter(function(t) {
+                return String(t.kategori || '').trim().toLowerCase() === String(kVal).trim().toLowerCase();
+            });
+        }
+
+        function aggregateByCategory(trxList) {
+            var map = {};
+            var grandTotal = 0;
+
+            for (var i = 0; i < trxList.length; i++) {
+                var t = trxList[i];
+                var kat = String(t.kategori || 'Lainnya').trim() || 'Lainnya';
+                var nom = parseFloat(t.nominal) || 0;
+                if (!map[kat]) {
+                    map[kat] = {
+                        kategori: kat,
+                        total: 0,
+                        count: 0,
+                        approvedTotal: 0,
+                        pendingTotal: 0
+                    };
+                }
+                map[kat].total += nom;
+                map[kat].count += 1;
+                if (t.status === 'Approved') map[kat].approvedTotal += nom;
+                else if (t.status === 'Pending') map[kat].pendingTotal += nom;
+                grandTotal += nom;
+            }
+
+            var arr = [];
+            for (var key in map) {
+                if (Object.prototype.hasOwnProperty.call(map, key)) {
+                    var item = map[key];
+                    item.percent = grandTotal > 0 ? ((item.total / grandTotal) * 100) : 0;
+                    arr.push(item);
+                }
+            }
+
+            arr.sort(function(a, b) {
+                return b.total - a.total;
+            });
+
+            for (var j = 0; j < arr.length; j++) {
+                arr[j].color = CHART_COLORS[j % CHART_COLORS.length];
+            }
+
+            return {
+                items: arr,
+                grandTotal: grandTotal
+            };
+        }
+
+        function renderCategoryPieChart(aggResult) {
+            var canvas = document.getElementById('categoryPieChart');
+            var container = document.getElementById('pieChartContainer');
+            var emptyEl = document.getElementById('pieChartEmptyState');
+            if (!canvas || !container || !emptyEl) return;
+
+            var items = (aggResult.items || []).filter(function(x) { return x.total > 0; });
+
+            if (items.length === 0 || typeof Chart === 'undefined') {
+                container.classList.add('hide');
+                emptyEl.classList.remove('hide');
+                if (categoryPieChartInstance) {
+                    categoryPieChartInstance.destroy();
+                    categoryPieChartInstance = null;
+                }
+                return;
+            }
+
+            container.classList.remove('hide');
+            emptyEl.classList.add('hide');
+
+            var labels = items.map(function(x) { return x.kategori; });
+            var values = items.map(function(x) { return x.total; });
+            var colors = items.map(function(x) { return x.color; });
+
+            if (categoryPieChartInstance) {
+                categoryPieChartInstance.destroy();
+            }
+
+            var ctx = canvas.getContext('2d');
+            categoryPieChartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderColor: '#ffffff',
+                        borderWidth: 2.5,
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: function(evt, elements) {
+                        if (elements && elements.length > 0) {
+                            var idx = elements[0].index;
+                            var clickedKat = labels[idx];
+                            if (clickedKat) {
+                                selectLaporanKategori(clickedKat);
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                padding: 12,
+                                font: {
+                                    family: "'Plus Jakarta Sans', sans-serif",
+                                    size: 11,
+                                    weight: '600'
+                                },
+                                color: '#475569'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            titleFont: {
+                                family: "'Plus Jakarta Sans', sans-serif",
+                                size: 12,
+                                weight: '700'
+                            },
+                            bodyFont: {
+                                family: "'Plus Jakarta Sans', sans-serif",
+                                size: 12
+                            },
+                            padding: 10,
+                            cornerRadius: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    var val = context.parsed || 0;
+                                    var pct = aggResult.grandTotal > 0 ? ((val / aggResult.grandTotal) * 100).toFixed(1) : '0.0';
+                                    return ' ' + formatRupiah(val) + ' (' + pct + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
             });
         }
 
         function renderLaporan() {
             if (!dashboardData || !isAdminUser()) return;
-            var data = getFilteredLaporanData();
+
+            var basePeriodData = getBasePeriodLaporanData();
+            var filteredData = getFilteredLaporanData();
+            var agg = aggregateByCategory(basePeriodData);
+            var selectedKat = document.getElementById('repFilterKategori') ? document.getElementById('repFilterKategori').value : 'ALL';
+
+            // Hitung KPI dari data yang sedang tampil (filteredData)
+            var totFilteredNominal = 0;
             var totApp = 0;
             var totPend = 0;
+            var countApp = 0;
+            var countPend = 0;
 
-            for (var i = 0; i < data.length; i++) {
-                var nom = parseFloat(data[i].nominal) || 0;
-                if (data[i].status === 'Approved') totApp += nom;
-                else if (data[i].status === 'Pending') totPend += nom;
+            for (var i = 0; i < filteredData.length; i++) {
+                var nom = parseFloat(filteredData[i].nominal) || 0;
+                totFilteredNominal += nom;
+                if (filteredData[i].status === 'Approved') {
+                    totApp += nom;
+                    countApp++;
+                } else if (filteredData[i].status === 'Pending') {
+                    totPend += nom;
+                    countPend++;
+                }
             }
 
-            document.getElementById('repTotalCount').textContent = data.length;
-            document.getElementById('repTotalApproved').textContent = formatRupiah(totApp);
-            document.getElementById('repTotalPending').textContent = formatRupiah(totPend);
+            // Update 2x2 Pastel KPI Cards
+            document.getElementById('repTotalCount').textContent = filteredData.length + ' Nota';
+            document.getElementById('repCountSub').textContent = countApp + ' Approved • ' + countPend + ' Pending';
+
+            var nomLabelEl = document.getElementById('repTotalNominalLabel');
+            if (nomLabelEl) {
+                nomLabelEl.textContent = selectedKat !== 'ALL' ? ('Total ' + selectedKat) : 'Total Pengeluaran';
+            }
+            document.getElementById('repTotalApproved').textContent = formatRupiah(totFilteredNominal);
+            document.getElementById('repPendingSub').textContent = 'Approved: ' + formatRupiah(totApp);
+
+            // Kategori Terbesar dalam periode
+            var topKatNameEl = document.getElementById('repTopKategoriName');
+            var topKatValEl = document.getElementById('repTopKategoriVal');
+            if (agg.items.length > 0) {
+                topKatNameEl.textContent = agg.items[0].kategori;
+                topKatValEl.textContent = formatRupiah(agg.items[0].total) + ' (' + agg.items[0].percent.toFixed(1) + '%)';
+            } else {
+                topKatNameEl.textContent = '-';
+                topKatValEl.textContent = 'Rp 0';
+            }
+
+            // Periode Display
+            var dStart = document.getElementById('repFilterStart') ? document.getElementById('repFilterStart').value : '';
+            var dEnd = document.getElementById('repFilterEnd') ? document.getElementById('repFilterEnd').value : '';
+            var periodTitleEl = document.getElementById('repPeriodDisplay');
+            var periodSubEl = document.getElementById('repPeriodDateSub');
+            if (activePeriodPreset === 'THIS_MONTH') {
+                periodTitleEl.textContent = 'Bulan Ini';
+                periodSubEl.textContent = formatDisplayMonthYear(dStart);
+            } else if (activePeriodPreset === 'TODAY') {
+                periodTitleEl.textContent = 'Hari Ini';
+                periodSubEl.textContent = formatDisplayShortDate(dStart);
+            } else if (activePeriodPreset === 'THIS_WEEK') {
+                periodTitleEl.textContent = 'Minggu Ini';
+                periodSubEl.textContent = formatDisplayShortDate(dStart) + ' - ' + formatDisplayShortDate(dEnd);
+            } else if (activePeriodPreset === 'LAST_MONTH') {
+                periodTitleEl.textContent = 'Bulan Lalu';
+                periodSubEl.textContent = formatDisplayMonthYear(dStart);
+            } else if (activePeriodPreset === 'ALL') {
+                periodTitleEl.textContent = 'Semua Waktu';
+                periodSubEl.textContent = 'Seluruh riwayat';
+            } else {
+                periodTitleEl.textContent = 'Custom Tanggal';
+                periodSubEl.textContent = (dStart ? formatDisplayShortDate(dStart) : 'Awal') + ' - ' + (dEnd ? formatDisplayShortDate(dEnd) : 'Sekarang');
+            }
+
+            // Render Grafik Pie
+            renderCategoryPieChart(agg);
+
+            // Render Rincian per Kategori
+            var btnResetKat = document.getElementById('btnResetKatFilter');
+            if (btnResetKat) {
+                if (selectedKat !== 'ALL') btnResetKat.classList.remove('hide');
+                else btnResetKat.classList.add('hide');
+            }
+
+            var breakdownEl = document.getElementById('listCategoryBreakdown');
+            if (breakdownEl) {
+                if (agg.items.length === 0) {
+                    breakdownEl.innerHTML = '<div class="py-10 text-center text-xs text-slate-400 font-semibold">Belum ada pengeluaran kategori pada periode ini.</div>';
+                } else {
+                    var bh = '';
+                    for (var k = 0; k < agg.items.length; k++) {
+                        var item = agg.items[k];
+                        var isSelected = (selectedKat !== 'ALL' && selectedKat.toLowerCase() === item.kategori.toLowerCase());
+                        var rowCls = isSelected
+                            ? 'bg-[#eef4ff] border-blue-400 ring-1 ring-blue-400'
+                            : 'bg-slate-50/70 hover:bg-[#f8faff] border-slate-100';
+
+                        bh += '<div onclick="selectLaporanKategori(\'' + escapeAttr(item.kategori) + '\')" class="p-3 rounded-2xl border cursor-pointer transition-all ' + rowCls + '">' +
+                            '<div class="flex items-center justify-between gap-2">' +
+                                '<div class="flex items-center gap-2.5 min-w-0">' +
+                                    '<span class="w-3 h-3 rounded-full shrink-0" style="background-color:' + item.color + '"></span>' +
+                                    '<div class="min-w-0">' +
+                                        '<p class="font-extrabold text-slate-900 text-xs truncate">' + escapeHtml(item.kategori) + '</p>' +
+                                        '<p class="text-[10px] text-slate-500">' + item.count + ' transaksi</p>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<div class="text-right shrink-0">' +
+                                    '<p class="font-extrabold text-blue-600 text-xs md:text-sm">' + formatRupiah(item.total) + '</p>' +
+                                    '<p class="text-[10px] font-bold text-slate-400">' + item.percent.toFixed(1) + '%</p>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="w-full h-1.5 bg-slate-200/70 rounded-full overflow-hidden mt-2">' +
+                                '<div class="h-full rounded-full transition-all" style="width:' + Math.max(2, Math.round(item.percent)) + '%; background-color:' + item.color + '"></div>' +
+                            '</div>' +
+                        '</div>';
+                    }
+                    breakdownEl.innerHTML = bh;
+                }
+            }
+
+            // Render Daftar Detail Nota Terfilter
+            var detailTitle = document.getElementById('laporanDetailListTitle');
+            var detailBadge = document.getElementById('laporanDetailListBadge');
+            if (detailTitle) {
+                detailTitle.textContent = selectedKat !== 'ALL'
+                    ? ('Detail Nota Kategori: ' + selectedKat)
+                    : 'Daftar Nota Terfilter';
+            }
+            if (detailBadge) detailBadge.textContent = filteredData.length + ' nota';
 
             var previewEl = document.getElementById('listLaporanPreview');
             if (!previewEl) return;
-            if (data.length === 0) {
-                previewEl.innerHTML = '<div class="bg-white p-6 rounded-3xl border border-slate-100 text-center text-slate-400 text-xs">Tidak ada data laporan pada filter ini.</div>';
+            if (filteredData.length === 0) {
+                previewEl.innerHTML = '<div class="kasly-card p-6 rounded-3xl text-center text-slate-400 text-xs font-semibold">Tidak ada data transaksi pada filter tanggal/kategori ini.</div>';
                 return;
             }
 
             var html = '';
-            for (var j = 0; j < data.length; j++) {
-                var t = data[j];
-                html += '<div class="bg-white p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between gap-2 text-xs">' +
-                    '<div class="min-w-0">' +
-                        '<p class="font-extrabold text-slate-800 truncate">' + escapeHtml(t.kategori) + ' <span class="font-normal text-slate-400">(' + escapeHtml(t.nama_driver) + ')</span></p>' +
-                        '<p class="text-[11px] text-slate-500 truncate">' + escapeHtml(t.tanggal) + (t.keterangan ? ' &bull; ' + escapeHtml(t.keterangan) : '') + '</p>' +
-                    '</div>' +
-                    '<div class="text-right shrink-0">' +
-                        '<p class="font-extrabold text-slate-900">' + formatRupiah(t.nominal) + '</p>' +
-                        '<span class="text-[10px] font-bold ' + (t.status === 'Approved' ? 'text-emerald-600' : (t.status === 'Rejected' ? 'text-rose-600' : 'text-amber-600')) + '">' + escapeHtml(t.status) + '</span>' +
-                    '</div>' +
-                '</div>';
+            for (var j = 0; j < filteredData.length; j++) {
+                html += buildCleanTransactionCardHtml(filteredData[j], false);
             }
             previewEl.innerHTML = html;
         }
@@ -2393,7 +2950,21 @@
                 showToast('Tidak ada data untuk diunduh.', 'warning');
                 return;
             }
-            var rows = data.map(function(t, idx) {
+
+            var agg = aggregateByCategory(data);
+            var summaryRows = agg.items.map(function(c, idx) {
+                return {
+                    'No': idx + 1,
+                    'Kategori': c.kategori,
+                    'Jumlah Transaksi': c.count,
+                    'Total Nominal (Rp)': c.total,
+                    'Total Approved (Rp)': c.approvedTotal,
+                    'Total Pending (Rp)': c.pendingTotal,
+                    'Persentase (%)': Number(c.percent.toFixed(2))
+                };
+            });
+
+            var detailRows = data.map(function(t, idx) {
                 return {
                     'No': idx + 1,
                     'ID Transaksi': t.id_transaksi,
@@ -2410,11 +2981,13 @@
                 };
             });
 
-            var ws = XLSX.utils.json_to_sheet(rows);
             var wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Laporan_' + activeMode);
+            var wsCat = XLSX.utils.json_to_sheet(summaryRows);
+            var wsDet = XLSX.utils.json_to_sheet(detailRows);
+            XLSX.utils.book_append_sheet(wb, wsCat, 'Ringkasan_Kategori');
+            XLSX.utils.book_append_sheet(wb, wsDet, 'Detail_Transaksi');
             XLSX.writeFile(wb, 'Laporan_PettyCash_' + activeMode + '_' + getTodayLocalIso() + '.xlsx');
-            showToast('File Excel berhasil diunduh!', 'success');
+            showToast('File Excel (Ringkasan Kategori + Detail) berhasil diunduh!', 'success');
         }
 
         // =========================================================================
@@ -2431,7 +3004,6 @@
             if (!dashboardData || !isAdminUser()) return;
             var isMfg = (activeMode === 'Manufaktur');
 
-            // Master Keterangan
             var katEl = document.getElementById('listMasterKategori');
             if (katEl) {
                 var kats = isMfg ? (dashboardData.kategori_mfg_all || []) : (dashboardData.kategori_all || []);
@@ -2441,7 +3013,7 @@
                     var kh = '';
                     for (var i = 0; i < kats.length; i++) {
                         var k = kats[i];
-                        kh += '<div class="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2 text-xs">' +
+                        kh += '<div class="p-3 rounded-2xl bg-slate-50/80 border border-slate-100 flex items-center justify-between gap-2 text-xs">' +
                             '<span class="font-bold text-slate-800">' + escapeHtml(k.nama_kategori) + '</span>' +
                             '<button type="button" onclick="deleteKategoriItem(\'' + escapeAttr(k.id_kategori) + '\')" class="text-rose-600 hover:bg-rose-50 px-2.5 py-1 rounded-lg font-bold">Hapus</button>' +
                         '</div>';
@@ -2450,7 +3022,6 @@
                 }
             }
 
-            // Daftar Akun
             var usrEl = document.getElementById('listAllUsers');
             if (usrEl) {
                 var users = dashboardData.all_users || [];
@@ -2458,7 +3029,7 @@
                 for (var j = 0; j < users.length; j++) {
                     var u = users[j];
                     var showUm = (u.role === 'Driver' || u.role === 'Operasional');
-                    uh += '<div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">' +
+                    uh += '<div class="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">' +
                         '<div>' +
                             '<p class="font-extrabold text-slate-900">' + escapeHtml(u.nama_lengkap) + ' <span class="font-normal text-slate-400">(@' + escapeHtml(u.username) + ')</span></p>' +
                             '<p class="text-[11px] text-slate-500 mt-0.5">Role: <b>' + escapeHtml(u.role) + '</b>' + (showUm ? ' &bull; Saldo UM: <b>' + formatRupiah(u.saldo_um) + '</b>' : '') + ' &bull; Status: <b>' + escapeHtml(u.status) + '</b></p>' +
@@ -2495,7 +3066,7 @@
             })
             .catch(function(err) {
                 hideLoading();
-                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
 
@@ -2514,7 +3085,7 @@
             })
             .catch(function(err) {
                 hideLoading();
-                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
 
@@ -2526,7 +3097,7 @@
             var saldoUm = parseRibuanValue(document.getElementById('addSaldoUm').value);
 
             if (!nama || !username || !password) {
-                Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', text: 'Nama lengkap, username, dan password wajib diisi.', confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', text: 'Nama lengkap, username, dan password wajib diisi.', confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 return;
             }
 
@@ -2549,11 +3120,11 @@
             })
             .then(function(res) {
                 hideLoading();
-                Swal.fire({ icon: 'success', title: 'Berhasil', text: res.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                Swal.fire({ icon: 'success', title: 'Berhasil', text: res.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             })
             .catch(function(err) {
                 hideLoading();
-                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
             });
         }
 
@@ -2584,7 +3155,7 @@
                     '</select></div>' +
                 '</div>',
                 showCancelButton: true,
-                confirmButtonColor: '#4f46e5',
+                confirmButtonColor: '#2563eb',
                 cancelButtonColor: '#64748b',
                 confirmButtonText: 'Simpan Perubahan',
                 cancelButtonText: 'Batal',
@@ -2622,7 +3193,7 @@
                 })
                 .catch(function(err) {
                     hideLoading();
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
         }
@@ -2654,7 +3225,7 @@
                 })
                 .catch(function(err) {
                     hideLoading();
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
         }
@@ -2688,7 +3259,7 @@
                     '</select></div>' +
                 '</div>',
                 showCancelButton: true,
-                confirmButtonColor: '#4f46e5',
+                confirmButtonColor: '#2563eb',
                 cancelButtonColor: '#64748b',
                 confirmButtonText: 'Simpan Perubahan',
                 cancelButtonText: 'Batal',
@@ -2722,7 +3293,7 @@
                 })
                 .catch(function(err) {
                     hideLoading();
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
         }
@@ -2755,7 +3326,7 @@
                 })
                 .catch(function(err) {
                     hideLoading();
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
         }
@@ -2780,7 +3351,7 @@
                     '<div><label class="font-bold text-slate-600 block mb-1">Alasan Pengajuan (Wajib)</label><input type="text" id="reqAlasan" placeholder="Contoh: Salah ketik nominal nota" class="w-full px-3 py-2 rounded-xl border border-slate-300"></div>' +
                 '</div>',
                 showCancelButton: true,
-                confirmButtonColor: '#4f46e5',
+                confirmButtonColor: '#2563eb',
                 cancelButtonColor: '#64748b',
                 confirmButtonText: 'Kirim Pengajuan',
                 cancelButtonText: 'Batal',
@@ -2817,11 +3388,11 @@
                 })
                 .then(function(data) {
                     hideLoading();
-                    Swal.fire({ icon: 'success', title: 'Terkirim', text: data.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ icon: 'success', title: 'Terkirim', text: data.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 })
                 .catch(function(err) {
                     hideLoading();
-                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#4f46e5', customClass: { popup: 'rounded-3xl' } });
+                    Swal.fire({ icon: 'error', title: 'Gagal', text: err.message, confirmButtonColor: '#2563eb', customClass: { popup: 'rounded-3xl' } });
                 });
             });
         }
@@ -2833,6 +3404,7 @@
         updateServerStatusIndicator();
         checkInstallVisibility();
         setDefaultInputTanggalNota();
+        setLaporanPeriodPreset('THIS_MONTH', true);
         restoreSessionOnBoot();
     </script>
 </body>
