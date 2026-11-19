@@ -61,7 +61,8 @@ async function pollNotificationsInBackground() {
       body: JSON.stringify({
         action: 'get_notifications',
         userId: cfg.userId,
-        role: cfg.role || ''
+        role: cfg.role || '',
+        divisi: cfg.mode || ''
       })
     });
     const json = await response.json();
@@ -73,11 +74,12 @@ async function pollNotificationsInBackground() {
     for (let i = list.length - 1; i >= 0; i--) {
       const item = list[i];
       if (item.is_read) continue;
+      if (cfg.mode && item.divisi && item.divisi !== cfg.mode) continue;
       const key = getScopedCacheUrl('shown/' + encodeURIComponent(item.id_notif));
       const alreadyShown = await shownCache.match(key);
       if (!alreadyShown) {
         await shownCache.put(key, new Response('1'));
-        await self.registration.showNotification(item.title, {
+        await self.registration.showNotification((item.divisi ? '[' + item.divisi + '] ' : '') + item.title, {
           body: item.body,
           tag: item.id_notif,
           renotify: true,
