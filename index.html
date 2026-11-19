@@ -373,9 +373,14 @@
                                 </p>
                                 <p id="headerSaldoKasManufaktur" class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight mt-0.5">Rp 0</p>
                             </div>
-                            <button type="button" onclick="openTopupKasManufakturModal()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm shadow-teal-200 transition-all shrink-0">
-                                <i class="ph ph-plus-circle text-base"></i> Top-Up Pabrik
-                            </button>
+                            <div class="flex flex-col sm:flex-row gap-2 shrink-0">
+                                <button type="button" onclick="openTopupKasManufakturModal()" class="bg-white hover:bg-teal-50 text-teal-700 border border-teal-200 text-xs font-bold px-3.5 py-2 rounded-xl flex items-center justify-center gap-1 transition-all">
+                                    <i class="ph ph-plus"></i> Top-Up Pabrik
+                                </button>
+                                <button type="button" onclick="switchTab('input')" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center justify-center gap-1 shadow-xs transition-all">
+                                    <i class="ph ph-plus-circle"></i> Input Nota
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </header>
@@ -1258,6 +1263,7 @@
                             apiUrl: getGasApiUrl(),
                             userId: currentUser ? currentUser.id_user : '',
                             role: currentUser ? currentUser.role : '',
+                            mode: activeMode,
                             appUrl: window.location.href.split('#')[0]
                         }
                     });
@@ -1561,70 +1567,107 @@
                 return;
             }
             if (Notification.permission === 'granted') {
-                syncConfigToServiceWorker();
                 SonnerToast.success('Notifikasi background HP sudah aktif!');
+                triggerDeviceNotification('Petty Cash Pro', 'Notifikasi background siap menerima info transaksi & saldo.');
                 return;
             }
-            Notification.requestPermission().then(function(perm) {
-                if (perm === 'granted') {
-                    syncConfigToServiceWorker();
-                    SonnerToast.success('Notifikasi HP berhasil diaktifkan!');
-                    triggerDeviceNotification('Notifikasi Aktif', 'Notifikasi Petty Cash Pro siap muncul di HP Anda.');
+            if (Notification.permission === 'denied') {
+                SonnerToast.warning('Izin notifikasi diblokir browser. Aktifkan lewat Pengaturan Situs (Site Settings) di browser HP Anda.');
+                return;
+            }
+            Notification.requestPermission().then(function(permission) {
+                if (permission === 'granted') {
+                    SonnerToast.success('Notifikasi background HP berhasil diaktifkan!');
+                    triggerDeviceNotification('Petty Cash Pro', 'Notifikasi otomatis telah aktif.');
                 } else {
-                    SonnerToast.warning('Izin notifikasi ditolak di pengaturan browser.');
+                    SonnerToast.warning('Izin notifikasi tidak diberikan.');
                 }
-            });
+            }).catch(function() {});
         }
 
-        function triggerDeviceNotification(title, bodyText, tagId) {
+        function triggerDeviceNotification(title, body, tag) {
             try {
                 if (!('Notification' in window) || Notification.permission !== 'granted') return;
                 if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                    navigator.serviceWorker.ready.then(function(reg) {
-                        if (reg && typeof reg.showNotification === 'function') {
-                            reg.showNotification(title, {
-                                body: bodyText,
-                                tag: tagId || ('pc-' + Date.now()),
-                                renotify: true,
-                                vibrate: [200, 100, 200]
-                            });
-                        } else {
-                            new Notification(title, { body: bodyText });
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'SHOW_LOCAL_NOTIF',
+                        payload: {
+                            title: title || 'Petty Cash Pro',
+                            body: body || '',
+                            tag: tag || ('pc-' + Date.now())
                         }
-                    }).catch(function() {
-                        new Notification(title, { body: bodyText });
                     });
                 } else {
-                    new Notification(title, { body: bodyText });
+                    new Notification(title || 'Petty Cash Pro', {
+                        body: body || '',
+                        tag: tag || ('pc-' + Date.now())
+                    });
                 }
             } catch (e) {}
         }
 
+        function getNotifDivisi(n) {
+            if (n && (n.divisi === 'Manufaktur' || n.divisi === 'Distribusi')) return n.divisi;
+            var hay = ((n && n.title) ? n.title : '') + ' ' + ((n && n.body) ? n.body : '');
+            if (hay.toLowerCase().indexOf('manufaktur') !== -1 || hay.toLowerCase().indexOf('pabrik') !== -1 || hay.toLowerCase().indexOf('mfg-') !== -1) {
+                return 'Manufaktur';
+            }
+            return 'Distribusi';
+        }
+
         function processServerNotifications(data, isInitial) {
             if (!data) return;
-            var unreadCount = parseInt(data.unread_notif_count, 10) || 0;
-            setBadgeCount('notifBellBadge', unreadCount);
+            var allList = data.notifications || [];
+            var modeList = allList.filter(function(item) {
+                return getNotifDivisi(item) === activeMode;
+            });
 
-            var list = data.notifications || [];
-            for (var i = list.length - 1; i >= 0; i--) {
-                var n = list[i];
+            var unreadForActiveMode = 0;
+            for (var u = 0; u < modeList.length; u++) {
+                if (!modeList[u].is_read) unreadForActiveMode++;
+            }
+            setBadgeCount('notifBellBadge', unreadForActiveMode);
+
+            for (var i = modeList.length - 1; i >= 0; i--) {
+                var n = modeList[i];
                 if (!n.is_read && !shownNotifIds[n.id_notif]) {
                     shownNotifIds[n.id_notif] = true;
                     if (!isInitial) {
-                        SonnerToast.info(n.body, { title: n.title, duration: 4500 });
-                        triggerDeviceNotification(n.title, n.body, n.id_notif);
+                        SonnerToast.info(n.body, { title: '[' + activeMode + '] ' + n.title, duration: 4500 });
+                        triggerDeviceNotification('[' + activeMode + '] ' + n.title, n.body, n.id_notif);
                     }
                 }
             }
         }
 
         function openNotificationCenterModal() {
-            var list = (dashboardData && dashboardData.notifications) ? dashboardData.notifications : [];
+            var allList = (dashboardData && dashboardData.notifications) ? dashboardData.notifications : [];
+            var list = allList.filter(function(item) {
+                return getNotifDivisi(item) === activeMode;
+            });
+
+            var otherMode = activeMode === 'Manufaktur' ? 'Distribusi' : 'Manufaktur';
+            var otherUnread = 0;
+            if (isAdminUser()) {
+                for (var k = 0; k < allList.length; k++) {
+                    if (!allList[k].is_read && getNotifDivisi(allList[k]) === otherMode) {
+                        otherUnread++;
+                    }
+                }
+            }
+
             var html = '';
+            if (isAdminUser() && otherUnread > 0) {
+                html += '<div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-2 text-[11px]">' +
+                    '<span class="font-bold text-amber-800">Ada <b>' + otherUnread + '</b> notifikasi baru di Mode Kas ' + otherMode + '</span>' +
+                    '<button type="button" onclick="closeSonnerModal(); switchAdminMode(\'' + otherMode + '\'); openNotificationCenterModal();" class="px-2.5 py-1 rounded-lg bg-amber-600 text-white font-extrabold shrink-0">Buka ' + otherMode + '</button>' +
+                '</div>';
+            }
+
             if (list.length === 0) {
-                html = '<div class="py-8 text-center text-slate-400 font-semibold">Belum ada riwayat notifikasi.</div>';
+                html += '<div class="py-8 text-center text-slate-400 font-semibold">Belum ada riwayat notifikasi untuk Mode Kas ' + activeMode + '.</div>';
             } else {
-                html = '<div class="space-y-2.5 max-h-[55vh] overflow-y-auto pr-1">';
+                html += '<div class="space-y-2.5 max-h-[55vh] overflow-y-auto pr-1">';
                 for (var i = 0; i < list.length; i++) {
                     var n = list[i];
                     var isDaily = n.category === 'daily_saldo' || n.category === 'daily_saldo_admin';
@@ -1643,25 +1686,27 @@
             }
 
             openSonnerModal({
-                title: 'Pusat Notifikasi & Info Saldo Harian',
+                title: 'Notifikasi Kas ' + activeMode,
                 html: html,
                 cancelText: 'Tutup',
-                confirmText: 'Tandai Semua Dibaca',
+                confirmText: 'Tandai Dibaca (' + activeMode + ')',
                 onConfirm: function() {
                     if (!currentUser) return;
                     fetchAPI({
                         action: 'mark_notifications_read',
                         userId: currentUser.id_user,
+                        divisi: activeMode,
                         id_notif: 'ALL'
                     }).then(function() {
                         setBadgeCount('notifBellBadge', 0);
                         if (dashboardData && dashboardData.notifications) {
-                            dashboardData.unread_notif_count = 0;
                             for (var j = 0; j < dashboardData.notifications.length; j++) {
-                                dashboardData.notifications[j].is_read = true;
+                                if (getNotifDivisi(dashboardData.notifications[j]) === activeMode) {
+                                    dashboardData.notifications[j].is_read = true;
+                                }
                             }
                         }
-                        SonnerToast.success('Semua notifikasi ditandai sudah dibaca.');
+                        SonnerToast.success('Semua notifikasi Kas ' + activeMode + ' ditandai sudah dibaca.');
                     }).catch(function() {});
                 }
             });
@@ -1713,34 +1758,47 @@
             var pReq = (data.request_perubahan || []).filter(function(r) { return r.status_request === 'Pending'; }).length;
             var pReqMfg = (data.request_perubahan_mfg || []).filter(function(r) { return r.status_request === 'Pending'; }).length;
             var pTopup = (data.driver_topups || []).filter(function(k) { return k.status_topup === 'Pending'; }).length;
-            var pTopupReq = (data.request_topups || []).filter(function(r) { return r.status === 'Pending'; }).length;
+            var pTopupReq = (data.request_topups || []).filter(function(r) { return r.status === 'Pending' && !isManufakturRoleStr(r.role_user); }).length;
+            var pTopupReqMfg = (data.request_topups || []).filter(function(r) { return r.status === 'Pending' && isManufakturRoleStr(r.role_user); }).length;
             var pTransfers = (data.transfer_saldos || []).filter(function(t) { return t.status === 'Pending'; }).length;
             var aTrx = (data.transaksi || []).filter(function(t) { return t.status === 'Approved'; }).length;
             var aTrxMfg = (data.transaksi_mfg || []).filter(function(t) { return t.status === 'Approved'; }).length;
 
             if (!isInitial) {
                 if (isAdminUser()) {
-                    if (pTrx > lastKnownCounts.pendingTrx) {
-                        triggerDeviceNotification('Nota Distribusi Baru', 'Ada nota baru menunggu approval Admin.');
-                    }
-                    if (pTrxMfg > lastKnownCounts.pendingTrxMfg) {
-                        triggerDeviceNotification('Nota Manufaktur Baru', 'Ada nota pabrik baru menunggu approval Finance.');
-                    }
-                    if (pTopupReq > lastKnownCounts.pendingTopupReq) {
-                        triggerDeviceNotification('Request Top-Up Saldo Baru', 'Ada pengajuan top-up saldo user menunggu persetujuan Admin.');
-                    }
-                    if (pTransfers > lastKnownCounts.pendingTransfers) {
-                        triggerDeviceNotification('Approval Transfer / Retur Saldo', 'Ada pengajuan transfer saldo driver menunggu persetujuan Admin.');
-                    }
-                    if (pReq > lastKnownCounts.pendingReq || pReqMfg > lastKnownCounts.pendingReqMfg) {
-                        triggerDeviceNotification('Pengajuan Edit / Hapus', 'Ada permintaan perubahan nota baru.');
+                    if (activeMode === 'Distribusi') {
+                        if (pTrx > lastKnownCounts.pendingTrx) {
+                            triggerDeviceNotification('[Distribusi] Nota Baru', 'Ada nota distribusi baru menunggu approval Admin.');
+                        }
+                        if (pTopupReq > lastKnownCounts.pendingTopupReq) {
+                            triggerDeviceNotification('[Distribusi] Request Top-Up Baru', 'Ada pengajuan top-up saldo Distribusi menunggu persetujuan.');
+                        }
+                        if (pTransfers > lastKnownCounts.pendingTransfers) {
+                            triggerDeviceNotification('[Distribusi] Approval Transfer / Retur', 'Ada pengajuan transfer saldo driver menunggu persetujuan.');
+                        }
+                        if (pReq > lastKnownCounts.pendingReq) {
+                            triggerDeviceNotification('[Distribusi] Pengajuan Edit / Hapus', 'Ada permintaan perubahan nota distribusi.');
+                        }
+                    } else {
+                        if (pTrxMfg > lastKnownCounts.pendingTrxMfg) {
+                            triggerDeviceNotification('[Manufaktur] Nota Pabrik Baru', 'Ada nota pabrik baru menunggu approval Finance.');
+                        }
+                        if (pTopupReqMfg > lastKnownCounts.pendingTopupReqMfg) {
+                            triggerDeviceNotification('[Manufaktur] Request Top-Up Pabrik', 'Ada pengajuan top-up Kas Manufaktur menunggu persetujuan.');
+                        }
+                        if (pReqMfg > lastKnownCounts.pendingReqMfg) {
+                            triggerDeviceNotification('[Manufaktur] Pengajuan Edit / Hapus', 'Ada permintaan perubahan nota manufaktur.');
+                        }
                     }
                 } else {
                     if (pTopup > lastKnownCounts.pendingTopup) {
-                        triggerDeviceNotification('Saldo UM Masuk!', 'Admin mengirim Top-Up UM. Silakan konfirmasi Terima/Tolak.');
+                        triggerDeviceNotification('[Distribusi] Saldo UM Masuk!', 'Admin mengirim Top-Up UM. Silakan konfirmasi Terima/Tolak.');
                     }
-                    if (aTrx > lastKnownCounts.approvedTrx || aTrxMfg > lastKnownCounts.approvedTrxMfg) {
-                        triggerDeviceNotification('Nota Disetujui', 'Pengajuan nota Anda telah di-Approve.');
+                    if (aTrx > lastKnownCounts.approvedTrx) {
+                        triggerDeviceNotification('[Distribusi] Nota Disetujui', 'Pengajuan nota Anda telah di-Approve.');
+                    }
+                    if (aTrxMfg > lastKnownCounts.approvedTrxMfg) {
+                        triggerDeviceNotification('[Manufaktur] Nota Disetujui', 'Pengajuan nota pabrik Anda telah di-Approve.');
                     }
                 }
             }
@@ -1752,10 +1810,15 @@
                 pendingReqMfg: pReqMfg,
                 pendingTopup: pTopup,
                 pendingTopupReq: pTopupReq,
+                pendingTopupReqMfg: pTopupReqMfg,
                 pendingTransfers: pTransfers,
                 approvedTrx: aTrx,
                 approvedTrxMfg: aTrxMfg
             };
+        }
+
+        function isManufakturRoleStr(r) {
+            return String(r || '').trim().toLowerCase() === 'manufaktur';
         }
 
         // =========================================================================
@@ -1863,8 +1926,14 @@
         function switchAdminMode(mode) {
             if (!isAdminUser()) return;
             activeMode = (mode === 'Manufaktur') ? 'Manufaktur' : 'Distribusi';
+            if (activeMode === 'Distribusi' && currentTab === 'input') {
+                switchTab('dashboard', true);
+            }
             saveUserSession();
             applyRoleUI();
+            if (dashboardData) {
+                processServerNotifications(dashboardData, true);
+            }
             updateHeaderAndBadges();
             populateFilterDropdowns();
             populateInputKategoriDropdown();
@@ -1953,8 +2022,9 @@
             }
 
             var inputNavs = document.querySelectorAll('.input-nota-nav');
+            var canInputNota = (activeMode === 'Manufaktur') ? (admin || mfg) : (!admin && fieldDist);
             for (var m = 0; m < inputNavs.length; m++) {
-                setRoleElementVisible(inputNavs[m], !admin && (fieldDist || mfg));
+                setRoleElementVisible(inputNavs[m], canInputNota);
             }
 
             var topBanner = document.getElementById('topBlueBanner');
@@ -1996,11 +2066,17 @@
 
             var sbLabel = document.getElementById('sidebarModeLabel');
             var inTitle = document.getElementById('inputFormTitle');
+            var inSub = document.getElementById('inputFormSubtitle');
             var inBadge = document.getElementById('inputDivisiBadge');
             var katLbl = document.getElementById('kategoriModeLabel');
             if (activeMode === 'Manufaktur') {
                 if (sbLabel) sbLabel.textContent = 'Mode Manufaktur';
                 if (inTitle) inTitle.textContent = 'Input Nota Pengeluaran Pabrik';
+                if (inSub) {
+                    inSub.textContent = admin
+                        ? 'Input pengeluaran pabrik — saldo Kas Manufaktur langsung terpotong otomatis'
+                        : 'Lengkapi data pengeluaran pabrik dan unggah foto nota';
+                }
                 if (inBadge) {
                     inBadge.textContent = 'Manufaktur';
                     inBadge.className = 'text-[11px] font-extrabold px-3 py-1 rounded-full bg-teal-50 text-teal-700';
@@ -2009,6 +2085,7 @@
             } else {
                 if (sbLabel) sbLabel.textContent = 'Mode Distribusi';
                 if (inTitle) inTitle.textContent = 'Input Nota Pengeluaran';
+                if (inSub) inSub.textContent = 'Lengkapi data pengeluaran dan unggah foto nota';
                 if (inBadge) {
                     inBadge.textContent = 'Distribusi';
                     inBadge.className = 'text-[11px] font-extrabold px-3 py-1 rounded-full bg-[#eef4ff] text-blue-700';
@@ -2025,7 +2102,10 @@
             if (!admin && (tabName === 'approval' || tabName === 'kasinduk' || tabName === 'laporan')) {
                 tabName = 'dashboard';
             }
-            if (admin && (tabName === 'input' || tabName === 'topup-driver' || tabName === 'topup-mfg')) {
+            if (admin && (tabName === 'topup-driver' || tabName === 'topup-mfg')) {
+                tabName = 'dashboard';
+            }
+            if (admin && tabName === 'input' && activeMode !== 'Manufaktur') {
                 tabName = 'dashboard';
             }
             if (!fieldDist && tabName === 'topup-driver') {
@@ -2113,7 +2193,8 @@
             return fetchAPI({
                 action: 'get_dashboard',
                 userId: currentUser.id_user,
-                role: currentUser.role
+                role: currentUser.role,
+                divisi: activeMode
             })
             .then(function(data) {
                 isSyncing = false;
@@ -2200,10 +2281,15 @@
 
             var pendingAppCount = 0;
             if (isAdminUser()) {
-                var activeTrxList = (activeMode === 'Manufaktur') ? (dashboardData.transaksi_mfg || []) : (dashboardData.transaksi || []);
-                var activeReqList = (activeMode === 'Manufaktur') ? (dashboardData.request_perubahan_mfg || []) : (dashboardData.request_perubahan || []);
-                var pendingTopupReqs = (dashboardData.request_topups || []).filter(function(r) { return r.status === 'Pending'; }).length;
-                var pendingTrfs = (dashboardData.transfer_saldos || []).filter(function(t) { return t.status === 'Pending'; }).length;
+                var isMfgMode = (activeMode === 'Manufaktur');
+                var activeTrxList = isMfgMode ? (dashboardData.transaksi_mfg || []) : (dashboardData.transaksi || []);
+                var activeReqList = isMfgMode ? (dashboardData.request_perubahan_mfg || []) : (dashboardData.request_perubahan || []);
+                var pendingTopupReqs = (dashboardData.request_topups || []).filter(function(r) {
+                    return r.status === 'Pending' && (isMfgMode ? isManufakturRoleStr(r.role_user) : !isManufakturRoleStr(r.role_user));
+                }).length;
+                var pendingTrfs = isMfgMode
+                    ? 0
+                    : (dashboardData.transfer_saldos || []).filter(function(t) { return t.status === 'Pending'; }).length;
                 pendingAppCount = activeTrxList.filter(function(t) { return t.status === 'Pending'; }).length +
                                   activeReqList.filter(function(r) { return r.status_request === 'Pending'; }).length +
                                   pendingTopupReqs +
@@ -2795,8 +2881,10 @@
             var isMfg = (activeMode === 'Manufaktur');
             var trxs = (isMfg ? (dashboardData.transaksi_mfg || []) : (dashboardData.transaksi || [])).filter(function(t) { return t.status === 'Pending'; });
             var reqs = (isMfg ? (dashboardData.request_perubahan_mfg || []) : (dashboardData.request_perubahan || [])).filter(function(r) { return r.status_request === 'Pending'; });
-            var topupReqs = (dashboardData.request_topups || []).filter(function(r) { return r.status === 'Pending'; });
-            var trfReqs = (dashboardData.transfer_saldos || []).filter(function(t) { return t.status === 'Pending'; });
+            var topupReqs = (dashboardData.request_topups || []).filter(function(r) {
+                return r.status === 'Pending' && (isMfg ? isManufakturRoleStr(r.role_user) : !isManufakturRoleStr(r.role_user));
+            });
+            var trfReqs = isMfg ? [] : (dashboardData.transfer_saldos || []).filter(function(t) { return t.status === 'Pending'; });
 
             var kasIndukBal = parseFloat(dashboardData.saldo_kas_induk) || 0;
             var kasLbl = document.getElementById('approvalSisaKasIndukLabel');
